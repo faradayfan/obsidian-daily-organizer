@@ -1,99 +1,186 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import { Plugin, TFile } from 'obsidian';
+import {
+	DEFAULT_SETTINGS,
+	DailyOrganizerSettings,
+	DailyOrganizerSettingTab,
+} from './settings';
+import { LLMService } from './services/llm/llm-service';
+import { TodoMigrator } from './features/todo-migration/todo-migrator';
+import { ProjectFinder } from './features/project-updates/project-finder';
+import { ProjectUpdater } from './features/project-updates/project-updater';
+import { extractDateFromFilename } from './utils/date-utils';
 
-// Remember to rename these classes and interfaces!
+export default class DailyOrganizerPlugin extends Plugin {
+	settings: DailyOrganizerSettings;
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+	// Services
+	private llmService: LLMService;
+
+	// Features
+	private todoMigrator: TodoMigrator;
+	private projectFinder: ProjectFinder;
+	private projectUpdater: ProjectUpdater;
 
 	async onload() {
 		await this.loadSettings();
+		this.initializeServices();
+		this.registerCommands();
+		this.registerEventHandlers();
+		this.addSettingTab(new DailyOrganizerSettingTab(this.app, this));
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
+		console.log('Daily Organizer plugin loaded');
 	}
 
 	onunload() {
+		console.log('Daily Organizer plugin unloaded');
+	}
+
+	private initializeServices(): void {
+		// Initialize LLM service
+		this.llmService = new LLMService(this.settings);
+
+		// Initialize todo migration
+		this.todoMigrator = new TodoMigrator(this.app, this.settings);
+
+		// Initialize project updates
+		this.projectFinder = new ProjectFinder(this.app, this.settings);
+		this.projectUpdater = new ProjectUpdater(
+			this.app,
+			this.settings,
+			this.llmService,
+			this.projectFinder
+		);
+	}
+
+	private registerCommands(): void {
+		// Todo migration command (manual trigger)
+		this.addCommand({
+			id: 'migrate-todos',
+			name: 'Migrate uncompleted todos to today',
+			callback: async () => {
+				await this.todoMigrator.manualMigrate();
+			},
+		});
+
+		// Project updates command
+		this.addCommand({
+			id: 'update-projects',
+			name: 'Update project pages with daily progress',
+			callback: async () => {
+				await this.projectUpdater.updateAllProjects();
+			},
+		});
+	}
+
+	private registerEventHandlers(): void {
+		// Register for file creation events to auto-migrate todos and update projects
+		this.registerEvent(
+			this.app.vault.on('create', async (file) => {
+				if (file instanceof TFile && this.isDailyNote(file)) {
+					// Small delay to ensure file is fully created and any templates are applied
+					setTimeout(async () => {
+						// Auto-migrate todos if enabled
+						if (this.settings.todoMigrationEnabled) {
+							await this.todoMigrator.migrateTodos(file);
+						}
+
+						// Auto-update projects if enabled
+						if (this.settings.projectAutoUpdateEnabled) {
+							const previousNote = await this.findPreviousDailyNote(file);
+							if (previousNote) {
+								await this.projectUpdater.updateProjectsFromNote(previousNote);
+							}
+						}
+					}, 500);
+				}
+			})
+		);
+	}
+
+	private async findPreviousDailyNote(currentNote: TFile): Promise<TFile | null> {
+		const currentDate = extractDateFromFilename(currentNote.basename);
+		if (!currentDate) {
+			return null;
+		}
+
+		const dailyNotesFolder = this.settings.dailyNotesFolder;
+		const allFiles = this.app.vault.getMarkdownFiles();
+
+		// Filter to daily notes and parse their dates
+		const dailyNotes: { file: TFile; date: Date }[] = [];
+
+		for (const file of allFiles) {
+			// Check if file is in the daily notes folder
+			const fileFolder = file.parent?.path ?? '';
+			const expectedFolder = dailyNotesFolder || '';
+
+			if (fileFolder !== expectedFolder && !(expectedFolder === '' && fileFolder === '/')) {
+				continue;
+			}
+
+			// Try to parse date from filename
+			const fileDate = extractDateFromFilename(file.basename);
+			if (fileDate) {
+				dailyNotes.push({ file, date: fileDate });
+			}
+		}
+
+		// Filter to notes before current date and sort by date descending
+		const previousNotes = dailyNotes
+			.filter(({ date }) => date.getTime() < currentDate.getTime())
+			.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+		// Return the most recent one
+		const mostRecent = previousNotes[0];
+		return mostRecent?.file ?? null;
+	}
+
+	private isDailyNote(file: TFile): boolean {
+		// Check file extension
+		if (file.extension !== 'md') {
+			return false;
+		}
+
+		// Check if filename matches daily note pattern (YYYY-MM-DD)
+		const date = extractDateFromFilename(file.basename);
+		if (!date) {
+			return false;
+		}
+
+		// Check if in the correct folder
+		const expectedFolder = this.settings.dailyNotesFolder || '';
+		const fileFolder = file.parent?.path ?? '';
+
+		// Normalize for comparison (handle root folder case)
+		const normalizedExpected = expectedFolder === '' ? '' : expectedFolder;
+		const normalizedActual = fileFolder === '/' ? '' : fileFolder;
+
+		return normalizedExpected === normalizedActual;
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			(await this.loadData()) as Partial<DailyOrganizerSettings>
+		);
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-}
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
+		// Update services with new settings
+		if (this.llmService) {
+			this.llmService.updateSettings(this.settings);
+		}
+		if (this.todoMigrator) {
+			this.todoMigrator.updateSettings(this.settings);
+		}
+		if (this.projectFinder) {
+			this.projectFinder.updateSettings(this.settings);
+		}
+		if (this.projectUpdater) {
+			this.projectUpdater.updateSettings(this.settings);
+		}
 	}
 }

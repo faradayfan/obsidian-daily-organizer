@@ -1,11 +1,10 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "daily-organizer",
+	"name": "Daily Organizer",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "Automatically migrate todos, generate LLM-powered daily change summaries, and update project pages with daily progress.",
+	"author": "faradayfan",
+	"authorUrl": "https://github.com/faradayfan",
 	"isDesktopOnly": false
 }

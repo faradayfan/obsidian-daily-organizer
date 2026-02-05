@@ -12,6 +12,9 @@ module.exports = {
 	],
 	coverageDirectory: 'coverage',
 	coverageReporters: ['text', 'lcov', 'html'],
+	moduleNameMapper: {
+		'^obsidian$': '<rootDir>/src/__mocks__/obsidian.ts',
+	},
 	transform: {
 		'^.+\\.ts$': ['ts-jest', {
 			tsconfig: {

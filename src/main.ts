@@ -1,4 +1,4 @@
-import { Plugin, TFile } from 'obsidian';
+import { Plugin, TFile, MarkdownView } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	DailyOrganizerSettings,
@@ -8,6 +8,8 @@ import { LLMService } from './services/llm/llm-service';
 import { TodoMigrator } from './features/todo-migration/todo-migrator';
 import { ProjectFinder } from './features/project-updates/project-finder';
 import { ProjectUpdater } from './features/project-updates/project-updater';
+import { CompletionDateHandler } from './features/completion-date/completion-date-handler';
+import { TaskTagger } from './features/task-tagging/task-tagger';
 import { extractDateFromFilename } from './utils/date-utils';
 
 export default class DailyOrganizerPlugin extends Plugin {
@@ -20,6 +22,8 @@ export default class DailyOrganizerPlugin extends Plugin {
 	private todoMigrator: TodoMigrator;
 	private projectFinder: ProjectFinder;
 	private projectUpdater: ProjectUpdater;
+	private completionDateHandler: CompletionDateHandler;
+	private taskTagger: TaskTagger;
 
 	async onload() {
 		await this.loadSettings();
@@ -50,6 +54,12 @@ export default class DailyOrganizerPlugin extends Plugin {
 			this.llmService,
 			this.projectFinder
 		);
+
+		// Initialize completion date handler
+		this.completionDateHandler = new CompletionDateHandler(this.app, this.settings);
+
+		// Initialize task tagger
+		this.taskTagger = new TaskTagger(this.app, this.settings, this.projectFinder);
 	}
 
 	private registerCommands(): void {
@@ -77,6 +87,15 @@ export default class DailyOrganizerPlugin extends Plugin {
 			name: 'Update project keywords (using LLM)',
 			callback: async () => {
 				await this.projectUpdater.updateAllProjectKeywords();
+			},
+		});
+
+		// Task tagging command
+		this.addCommand({
+			id: 'tag-tasks',
+			name: 'Tag tasks with project keywords',
+			callback: async () => {
+				await this.taskTagger.tagTasksInActiveFile();
 			},
 		});
 	}
@@ -108,6 +127,25 @@ export default class DailyOrganizerPlugin extends Plugin {
 							await this.todoMigrator.migrateTodos(file);
 						}
 					}, 500);
+				}
+			})
+		);
+
+		// Register for editor changes to handle completion date tracking
+		this.registerEvent(
+			this.app.workspace.on('editor-change', (editor, view) => {
+				if (view instanceof MarkdownView) {
+					this.completionDateHandler.handleEditorChange(editor, view);
+				}
+			})
+		);
+
+		// Initialize completion date state when a file is opened
+		this.registerEvent(
+			this.app.workspace.on('active-leaf-change', () => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view && view.editor) {
+					this.completionDateHandler.initializeEditorState(view.editor, view);
 				}
 			})
 		);
@@ -197,6 +235,12 @@ export default class DailyOrganizerPlugin extends Plugin {
 		}
 		if (this.projectUpdater) {
 			this.projectUpdater.updateSettings(this.settings);
+		}
+		if (this.completionDateHandler) {
+			this.completionDateHandler.updateSettings(this.settings);
+		}
+		if (this.taskTagger) {
+			this.taskTagger.updateSettings(this.settings);
 		}
 	}
 }

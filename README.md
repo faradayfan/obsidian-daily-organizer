@@ -114,13 +114,13 @@ Configure in Settings → Daily Organizer → LLM Configuration
 
 ### Project Updates Settings
 
-| Setting                        | Description                                                            | Default          |
-| ------------------------------ | ---------------------------------------------------------------------- | ---------------- |
-| **Project Tag**                | Tag that identifies project pages                                      | `#project`       |
-| **Project Update Tag**         | Tag that marks where daily updates will be inserted                    | `#daily-updates` |
-| **Update Insert Position**     | Where to insert new updates (`top` or `bottom`)                        | `top`            |
-| **Auto-update Projects**       | Automatically update projects when creating a new daily note           | `false`          |
-| **Auto-update Project Keywords** | Regenerate project keywords (using LLM) when updating project pages  | `false`          |
+| Setting                          | Description                                                         | Default          |
+| -------------------------------- | ------------------------------------------------------------------- | ---------------- |
+| **Project Tag**                  | Tag that identifies project pages                                   | `#project`       |
+| **Project Update Tag**           | Tag that marks where daily updates will be inserted                 | `#daily-updates` |
+| **Update Insert Position**       | Where to insert new updates (`top` or `bottom`)                     | `top`            |
+| **Auto-update Projects**         | Automatically update projects when creating a new daily note        | `false`          |
+| **Auto-update Project Keywords** | Regenerate project keywords (using LLM) when updating project pages | `false`          |
 
 ## Daily Note Structure
 
@@ -213,11 +213,11 @@ update_style: Style guidance for updates (optional)
 
 These properties help the LLM generate better, more relevant updates:
 
-| Property          | Description                                        | Example                                                        |
-| ----------------- | -------------------------------------------------- | -------------------------------------------------------------- |
-| `update_focus`    | What to emphasize in updates                       | `"Focus on API implementation progress and test coverage"`     |
-| `update_keywords` | Keywords to watch for (can be LLM-generated)       | `"authentication, security, performance, bugs"`                |
-| `update_style`    | Style and detail level guidance                    | `"Brief bullet points, technical details, include file paths"` |
+| Property          | Description                                  | Example                                                        |
+| ----------------- | -------------------------------------------- | -------------------------------------------------------------- |
+| `update_focus`    | What to emphasize in updates                 | `"Focus on API implementation progress and test coverage"`     |
+| `update_keywords` | Keywords to watch for (can be LLM-generated) | `"authentication, security, performance, bugs"`                |
+| `update_style`    | Style and detail level guidance              | `"Brief bullet points, technical details, include file paths"` |
 
 ### Recommended Sections
 

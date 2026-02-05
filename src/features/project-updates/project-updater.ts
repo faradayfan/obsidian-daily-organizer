@@ -5,6 +5,7 @@ import { LLMService } from '../../services/llm/llm-service';
 import { ProjectFinder } from './project-finder';
 import { formatDate, getDailyNotePath, extractDateFromFilename } from '../../utils/date-utils';
 import { insertAfterTag, findSectionByTag, findSectionByHeader } from '../../utils/markdown-utils';
+import { TaskTagger } from '../task-tagging/task-tagger';
 
 export class ProjectUpdater {
 	private app: App;
@@ -427,6 +428,7 @@ export class ProjectUpdater {
 		const lines = dailyNotes.split('\n');
 		const relevantSections: string[] = [];
 		const projectName = project.name.toLowerCase();
+		const projectTag = TaskTagger.toKebabCaseTag(project.name);
 
 		// Parse keywords from frontmatter (comma-separated)
 		const keywords: string[] = [];
@@ -434,14 +436,50 @@ export class ProjectUpdater {
 			const keywordStr = String(project.update_keywords);
 			keywords.push(...keywordStr.split(',').map(k => k.trim().toLowerCase()).filter(k => k.length > 0));
 		}
-		console.log(`Daily Organizer: Searching for project name "${projectName}" and keywords:`, keywords);
+		console.log(`Daily Organizer: Searching for project name "${projectName}", tag "${projectTag}", and keywords:`, keywords);
 
-		// Look for lines that mention the project name or have project-related keywords
+		// Track which lines are already included via tagged tasks to avoid duplicates
+		const taggedLineRanges: Set<number> = new Set();
+
+		// Pass 1: Find root tasks with the project tag and include their full subtrees
+		const LIST_ITEM_REGEX = /^(\s*)- (?:\[[ xX]\] )?(.*)/;
+		const ROOT_TASK_REGEX = /^- \[[ xX]\] /;
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			if (!line || !ROOT_TASK_REGEX.test(line)) continue;
+
+			// Check if this root task has the project tag
+			if (!TaskTagger.hasTag(line, projectTag)) continue;
+
+			// Collect the full subtree (root + all indented children)
+			const subtreeLines: string[] = [line];
+			taggedLineRanges.add(i);
+
+			const rootMatch = line.match(LIST_ITEM_REGEX);
+			const rootIndent = rootMatch ? (rootMatch[1] as string).length : 0;
+
+			for (let j = i + 1; j < lines.length; j++) {
+				const childLine = lines[j];
+				if (!childLine) break;
+				const childMatch = childLine.match(LIST_ITEM_REGEX);
+				if (!childMatch) break;
+				if ((childMatch[1] as string).length <= rootIndent) break;
+				subtreeLines.push(childLine);
+				taggedLineRanges.add(j);
+			}
+
+			relevantSections.push(subtreeLines.join('\n'));
+		}
+
+		// Pass 2: Keyword/name-based matching (existing logic), skipping already-tagged lines
 		let currentSection: string[] = [];
 		let inRelevantSection = false;
 		let contextLinesAfter = 0;
 
 		for (let i = 0; i < lines.length; i++) {
+			if (taggedLineRanges.has(i)) continue;
+
 			const line = lines[i];
 			if (!line) continue;
 
@@ -460,6 +498,7 @@ export class ProjectUpdater {
 				// Include a few lines before for context (if available)
 				const contextBefore = Math.max(0, i - 3);
 				for (let j = contextBefore; j < i; j++) {
+					if (taggedLineRanges.has(j)) continue;
 					const prevLine = lines[j];
 					if (prevLine && !currentSection.includes(prevLine)) {
 						currentSection.push(prevLine);

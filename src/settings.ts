@@ -25,6 +25,17 @@ export interface DailyOrganizerSettings {
 	projectAutoUpdateEnabled: boolean;
 	projectUpdatePosition: InsertPosition;
 	autoUpdateProjectKeywords: boolean;
+
+	// Task Completion Date Settings
+	completionDateEnabled: boolean;
+	completionDateField: string;
+
+	// Task Created Date Settings
+	createdDateEnabled: boolean;
+	createdDateField: string;
+
+	// Task Tagging Settings
+	taskTaggingEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
@@ -48,6 +59,17 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 	projectAutoUpdateEnabled: false,
 	projectUpdatePosition: 'top',
 	autoUpdateProjectKeywords: false,
+
+	// Task Completion Date Settings
+	completionDateEnabled: false,
+	completionDateField: 'completion',
+
+	// Task Created Date Settings
+	createdDateEnabled: false,
+	createdDateField: 'created',
+
+	// Task Tagging Settings
+	taskTaggingEnabled: true,
 };
 
 export class DailyOrganizerSettingTab extends PluginSettingTab {
@@ -220,6 +242,70 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.autoUpdateProjectKeywords)
 				.onChange(async (value) => {
 					this.plugin.settings.autoUpdateProjectKeywords = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Task Metadata Section
+		containerEl.createEl('h2', { text: 'Task Metadata' });
+
+		new Setting(containerEl)
+			.setName('Enable Created Date')
+			.setDesc('Add a dataview-compliant created date when a new task checkbox is created')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.createdDateEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.createdDateEnabled = value;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		if (this.plugin.settings.createdDateEnabled) {
+			new Setting(containerEl)
+				.setName('Created Date Field')
+				.setDesc('The dataview field name to use (e.g., "created" creates [created:: YYYY-MM-DD])')
+				.addText(text => text
+					.setPlaceholder('created')
+					.setValue(this.plugin.settings.createdDateField)
+					.onChange(async (value) => {
+						this.plugin.settings.createdDateField = value || 'created';
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		new Setting(containerEl)
+			.setName('Enable Completion Date')
+			.setDesc('Add a dataview-compliant completion date when tasks are checked, remove when unchecked')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.completionDateEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.completionDateEnabled = value;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		if (this.plugin.settings.completionDateEnabled) {
+			new Setting(containerEl)
+				.setName('Completion Date Field')
+				.setDesc('The dataview field name to use (e.g., "completion" creates [completion:: YYYY-MM-DD])')
+				.addText(text => text
+					.setPlaceholder('completion')
+					.setValue(this.plugin.settings.completionDateField)
+					.onChange(async (value) => {
+						this.plugin.settings.completionDateField = value || 'completion';
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		// Task Tagging Section
+		containerEl.createEl('h2', { text: 'Task Tagging' });
+
+		new Setting(containerEl)
+			.setName('Enable Task Tagging')
+			.setDesc('Allow tagging tasks with project-based tags using the "Tag tasks" command')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.taskTaggingEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.taskTaggingEnabled = value;
 					await this.plugin.saveSettings();
 				}));
 	}

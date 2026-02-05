@@ -1,7 +1,7 @@
 {
 	"id": "daily-organizer",
 	"name": "Daily Organizer",
-	"version": "1.0.0",
+	"version": "0.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Automatically migrate todos, generate LLM-powered daily change summaries, and update project pages with daily progress.",
 	"author": "faradayfan",

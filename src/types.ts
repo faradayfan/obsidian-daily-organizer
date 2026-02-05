@@ -5,6 +5,9 @@ export interface TodoItem {
 	createdDate: string | null;
 	rawLine: string;
 	indentation: string;
+	indentLevel: number;
+	children: TodoItem[];
+	parent: TodoItem | null;
 }
 
 export interface FileChange {

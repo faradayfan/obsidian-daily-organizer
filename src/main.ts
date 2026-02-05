@@ -79,17 +79,19 @@ export default class DailyOrganizerPlugin extends Plugin {
 				if (file instanceof TFile && this.isDailyNote(file)) {
 					// Small delay to ensure file is fully created and any templates are applied
 					setTimeout(async () => {
-						// Auto-migrate todos if enabled
-						if (this.settings.todoMigrationEnabled) {
-							await this.todoMigrator.migrateTodos(file);
-						}
-
-						// Auto-update projects if enabled
+						// Auto-update projects BEFORE migrating todos
+						// This ensures the LLM sees uncompleted tasks in the previous note
 						if (this.settings.projectAutoUpdateEnabled) {
 							const previousNote = await this.findPreviousDailyNote(file);
 							if (previousNote) {
 								await this.projectUpdater.updateProjectsFromNote(previousNote);
 							}
+						}
+
+						// Auto-migrate todos after project updates
+						// This removes completed todos from the previous note
+						if (this.settings.todoMigrationEnabled) {
+							await this.todoMigrator.migrateTodos(file);
 						}
 					}, 500);
 				}

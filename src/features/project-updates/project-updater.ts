@@ -4,7 +4,7 @@ import type { ProjectMetadata } from '../../types';
 import { LLMService } from '../../services/llm/llm-service';
 import { ProjectFinder } from './project-finder';
 import { formatDate, getDailyNotePath, extractDateFromFilename } from '../../utils/date-utils';
-import { insertAfterSection, appendToSection, findSectionByHeader } from '../../utils/markdown-utils';
+import { insertAfterTag, findSectionByTag, findSectionByHeader } from '../../utils/markdown-utils';
 
 export class ProjectUpdater {
 	private app: App;
@@ -28,7 +28,7 @@ export class ProjectUpdater {
 		this.settings = settings;
 	}
 
-	async updateAllProjects(): Promise<void> {
+	async updateAllProjectKeywords(): Promise<void> {
 		// Check if LLM is configured
 		if (!this.llmService.isConfigured()) {
 			new Notice('LLM API key not configured. Please add it in settings.');
@@ -41,6 +41,117 @@ export class ProjectUpdater {
 		if (projects.length === 0) {
 			new Notice(`No projects found with ${this.settings.projectTag} tag.`);
 			return;
+		}
+
+		new Notice(`Generating keywords for ${projects.length} project(s)...`);
+
+		let updatedCount = 0;
+		for (const project of projects) {
+			const updated = await this.updateProjectKeywords(project);
+			if (updated) {
+				updatedCount++;
+			}
+		}
+
+		new Notice(`Updated keywords for ${updatedCount} project(s).`);
+	}
+
+	async updateProjectKeywords(project: ProjectMetadata): Promise<boolean> {
+		console.log(`Daily Organizer: Generating keywords for project ${project.name}`);
+
+		// Get project content
+		const projectContent = await this.projectFinder.getProjectContent(project);
+
+		// Extract key sections for analysis
+		const projectSections = this.extractProjectSections(projectContent);
+
+		if (!projectSections || projectSections.trim().length === 0) {
+			console.log(`Daily Organizer: No project sections found for ${project.name}`);
+			return false;
+		}
+
+		// Call LLM to generate keywords
+		const response = await this.llmService.generateProjectKeywords(project.name, projectSections);
+
+		if (response.error) {
+			console.error(`Daily Organizer: Error generating keywords for ${project.name}:`, response.error);
+			return false;
+		}
+
+		if (!response.content || response.content.trim().length === 0) {
+			console.log(`Daily Organizer: No keywords generated for ${project.name}`);
+			return false;
+		}
+
+		// Clean up the response - ensure it's just keywords
+		const keywords = response.content.trim();
+		console.log(`Daily Organizer: Generated keywords for ${project.name}: ${keywords}`);
+
+		// Update the project frontmatter with the new keywords
+		await this.updateProjectFrontmatter(project, 'update_keywords', keywords);
+
+		return true;
+	}
+
+	private async updateProjectFrontmatter(project: ProjectMetadata, key: string, value: string): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(project.path);
+		if (!(file instanceof TFile)) {
+			return;
+		}
+
+		const content = await this.app.vault.read(file);
+
+		// Parse frontmatter
+		const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+		if (!frontmatterMatch) {
+			console.log(`Daily Organizer: No frontmatter found in ${project.path}`);
+			return;
+		}
+
+		const frontmatter = frontmatterMatch[1];
+		const afterFrontmatter = content.slice(frontmatterMatch[0].length);
+
+		// Check if key already exists in frontmatter
+		const keyRegex = new RegExp(`^${key}:.*$`, 'm');
+		let newFrontmatter: string;
+
+		if (keyRegex.test(frontmatter ?? '')) {
+			// Replace existing key
+			newFrontmatter = (frontmatter ?? '').replace(keyRegex, `${key}: ${value}`);
+		} else {
+			// Add new key at the end of frontmatter
+			newFrontmatter = `${frontmatter}\n${key}: ${value}`;
+		}
+
+		const newContent = `---\n${newFrontmatter}\n---${afterFrontmatter}`;
+		await this.app.vault.modify(file, newContent);
+
+		console.log(`Daily Organizer: Updated ${key} in ${project.path}`);
+	}
+
+	async updateAllProjects(): Promise<void> {
+		// Check if LLM is configured
+		if (!this.llmService.isConfigured()) {
+			new Notice('LLM API key not configured. Please add it in settings.');
+			return;
+		}
+
+		// Find all projects
+		let projects = await this.projectFinder.findProjects();
+
+		if (projects.length === 0) {
+			new Notice(`No projects found with ${this.settings.projectTag} tag.`);
+			return;
+		}
+
+		// Optionally update keywords first
+		if (this.settings.autoUpdateProjectKeywords) {
+			new Notice(`Updating keywords for ${projects.length} project(s)...`);
+			for (const project of projects) {
+				await this.updateProjectKeywords(project);
+			}
+			// Re-fetch projects to get updated keywords
+			projects = await this.projectFinder.findProjects();
 		}
 
 		new Notice(`Found ${projects.length} project(s). Analyzing...`);
@@ -73,11 +184,21 @@ export class ProjectUpdater {
 		}
 
 		// Find all projects
-		const projects = await this.projectFinder.findProjects();
+		let projects = await this.projectFinder.findProjects();
 
 		if (projects.length === 0) {
 			console.log('Daily Organizer: No projects found for auto-update');
 			return;
+		}
+
+		// Optionally update keywords first
+		if (this.settings.autoUpdateProjectKeywords) {
+			console.log(`Daily Organizer: Auto-updating keywords for ${projects.length} project(s)`);
+			for (const project of projects) {
+				await this.updateProjectKeywords(project);
+			}
+			// Re-fetch projects to get updated keywords
+			projects = await this.projectFinder.findProjects();
 		}
 
 		// Read the note content
@@ -122,8 +243,11 @@ export class ProjectUpdater {
 		notesContent: string,
 		dateStr: string
 	): Promise<boolean> {
+		console.log(`Daily Organizer: Updating project ${project.name} for ${dateStr}`);
+
 		// Get project content first (needed for both context and updates)
 		const projectContent = await this.projectFinder.getProjectContent(project);
+		console.log(`Daily Organizer: Project content length: ${projectContent.length} chars`);
 
 		// Build enhanced project context from metadata and content
 		const projectContext = this.buildProjectContext(project, projectContent);
@@ -139,6 +263,7 @@ export class ProjectUpdater {
 
 		// Pre-filter notes to only potentially relevant sections
 		const relevantContent = this.extractRelevantContent(notesContent, project);
+		console.log(`Daily Organizer: Relevant content length: ${relevantContent?.length ?? 0} chars`);
 
 		if (!relevantContent || relevantContent.trim().length === 0) {
 			console.log(`Daily Organizer: No content mentioning ${project.name} found in daily notes`);
@@ -146,11 +271,13 @@ export class ProjectUpdater {
 		}
 
 		// Generate update using LLM
+		console.log(`Daily Organizer: Calling LLM for project ${project.name}...`);
 		const response = await this.llmService.analyzeForProject(
 			projectContext,
 			relevantContent,
 			existingUpdates
 		);
+		console.log(`Daily Organizer: LLM response - error: ${response.error ?? 'none'}, content length: ${response.content?.length ?? 0}`);
 
 		if (response.error) {
 			console.error(`Daily Organizer: Error updating project ${project.name}:`, response.error);
@@ -168,8 +295,12 @@ export class ProjectUpdater {
 			return false;
 		}
 
+		console.log(`Daily Organizer: LLM response content:\n${response.content}`);
+		console.log(`Daily Organizer: Inserting update into project page...`);
+
 		// Insert update into project page
 		await this.insertUpdateWithDate(project, response.content, dateStr);
+		console.log(`Daily Organizer: Successfully inserted update for ${project.name}`);
 		return true;
 	}
 
@@ -224,7 +355,7 @@ export class ProjectUpdater {
 	}
 
 	private extractExistingUpdates(content: string): string | undefined {
-		const section = findSectionByHeader(content, this.settings.projectUpdateSection);
+		const section = findSectionByTag(content, this.settings.projectUpdateTag);
 		if (!section) {
 			return undefined;
 		}
@@ -297,6 +428,14 @@ export class ProjectUpdater {
 		const relevantSections: string[] = [];
 		const projectName = project.name.toLowerCase();
 
+		// Parse keywords from frontmatter (comma-separated)
+		const keywords: string[] = [];
+		if (project.update_keywords) {
+			const keywordStr = String(project.update_keywords);
+			keywords.push(...keywordStr.split(',').map(k => k.trim().toLowerCase()).filter(k => k.length > 0));
+		}
+		console.log(`Daily Organizer: Searching for project name "${projectName}" and keywords:`, keywords);
+
 		// Look for lines that mention the project name or have project-related keywords
 		let currentSection: string[] = [];
 		let inRelevantSection = false;
@@ -308,9 +447,10 @@ export class ProjectUpdater {
 
 			const lineLower = line.toLowerCase();
 
-			// Check if line mentions the project
+			// Check if line mentions the project name, tag, or any keywords
 			const mentionsProject = lineLower.includes(projectName) ||
-			                        line.includes(this.settings.projectTag);
+			                        line.includes(this.settings.projectTag) ||
+			                        keywords.some(kw => lineLower.includes(kw));
 
 			if (mentionsProject) {
 				// Start a new relevant section
@@ -368,14 +508,10 @@ export class ProjectUpdater {
 		// Format the update entry
 		const updateEntry = `### ${dateStr}\n${update}`;
 
-		// Insert based on position setting
-		const insertFn = this.settings.projectUpdatePosition === 'top'
-			? insertAfterSection
-			: appendToSection;
-
-		const newContent = insertFn(
+		// Insert after the tag (user controls positioning by where they place the tag)
+		const newContent = insertAfterTag(
 			content,
-			this.settings.projectUpdateSection,
+			this.settings.projectUpdateTag,
 			updateEntry
 		);
 

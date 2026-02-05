@@ -164,6 +164,33 @@ Focus on the substance of what was worked on, not the file names themselves.`;
 		return this.complete(prompt, systemPrompt);
 	}
 
+	async generateProjectKeywords(
+		projectName: string,
+		projectSections: string
+	): Promise<LLMResponse> {
+		const systemPrompt = `You are an assistant helping to identify relevant keywords for a project.
+Your task is to analyze the project's content (goals, status, overview) and generate a list of keywords that would help identify relevant daily notes.
+
+IMPORTANT RULES:
+1. Focus on key terms, technologies, concepts, and action words from the project content
+2. Include both specific terms (e.g., "authentication", "API") and general concepts (e.g., "testing", "deployment")
+3. Return ONLY a comma-separated list of keywords, nothing else
+4. Include 5-15 keywords, ordered by importance
+5. Keep keywords lowercase and concise (1-2 words each)
+6. Do not include generic words like "project", "work", "task", "update"`;
+
+		const prompt = `Project: ${projectName}
+
+${projectSections}
+
+---
+
+Generate a comma-separated list of keywords that would help identify daily notes relevant to this project.
+Return ONLY the keywords, nothing else. Example format: keyword1, keyword2, keyword3`;
+
+		return this.complete(prompt, systemPrompt);
+	}
+
 	async summarizeFileChanges(_fileName: string, content: string, diff?: string): Promise<LLMResponse> {
 		const systemPrompt = `You are a helpful assistant that identifies what work was done on a note.
 Provide a very brief description (1 sentence, max 100 characters) of what was likely added, changed, or worked on.

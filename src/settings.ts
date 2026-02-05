@@ -21,9 +21,10 @@ export interface DailyOrganizerSettings {
 
 	// Project Updates Settings
 	projectTag: string;
-	projectUpdateSection: string;
+	projectUpdateTag: string;
 	projectAutoUpdateEnabled: boolean;
 	projectUpdatePosition: InsertPosition;
+	autoUpdateProjectKeywords: boolean;
 }
 
 export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
@@ -43,9 +44,10 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 
 	// Project Updates Settings
 	projectTag: '#project',
-	projectUpdateSection: '## Daily Updates',
+	projectUpdateTag: '#daily-updates',
 	projectAutoUpdateEnabled: false,
 	projectUpdatePosition: 'top',
+	autoUpdateProjectKeywords: false,
 };
 
 export class DailyOrganizerSettingTab extends PluginSettingTab {
@@ -179,13 +181,13 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Project Update Section')
-			.setDesc('Section header where daily updates will be added')
+			.setName('Project Update Tag')
+			.setDesc('Tag that marks where daily updates will be inserted')
 			.addText(text => text
-				.setPlaceholder('## Daily Updates')
-				.setValue(this.plugin.settings.projectUpdateSection)
+				.setPlaceholder('#daily-updates')
+				.setValue(this.plugin.settings.projectUpdateTag)
 				.onChange(async (value) => {
-					this.plugin.settings.projectUpdateSection = value;
+					this.plugin.settings.projectUpdateTag = value;
 					await this.plugin.saveSettings();
 				}));
 
@@ -208,6 +210,16 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.projectAutoUpdateEnabled)
 				.onChange(async (value) => {
 					this.plugin.settings.projectAutoUpdateEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto-update Project Keywords')
+			.setDesc('Automatically regenerate project keywords (using LLM) when updating project pages')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoUpdateProjectKeywords)
+				.onChange(async (value) => {
+					this.plugin.settings.autoUpdateProjectKeywords = value;
 					await this.plugin.saveSettings();
 				}));
 	}

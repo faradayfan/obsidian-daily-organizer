@@ -70,6 +70,15 @@ export default class DailyOrganizerPlugin extends Plugin {
 				await this.projectUpdater.updateAllProjects();
 			},
 		});
+
+		// Update project keywords command
+		this.addCommand({
+			id: 'update-project-keywords',
+			name: 'Update project keywords (using LLM)',
+			callback: async () => {
+				await this.projectUpdater.updateAllProjectKeywords();
+			},
+		});
 	}
 
 	private registerEventHandlers(): void {
@@ -79,10 +88,15 @@ export default class DailyOrganizerPlugin extends Plugin {
 				if (file instanceof TFile && this.isDailyNote(file)) {
 					// Small delay to ensure file is fully created and any templates are applied
 					setTimeout(async () => {
+						console.log('Daily Organizer: New daily note created:', file.basename);
+						console.log('Daily Organizer: projectAutoUpdateEnabled:', this.settings.projectAutoUpdateEnabled);
+						console.log('Daily Organizer: todoMigrationEnabled:', this.settings.todoMigrationEnabled);
+
 						// Auto-update projects BEFORE migrating todos
 						// This ensures the LLM sees uncompleted tasks in the previous note
 						if (this.settings.projectAutoUpdateEnabled) {
 							const previousNote = await this.findPreviousDailyNote(file);
+							console.log('Daily Organizer: Previous note found:', previousNote?.basename ?? 'none');
 							if (previousNote) {
 								await this.projectUpdater.updateProjectsFromNote(previousNote);
 							}

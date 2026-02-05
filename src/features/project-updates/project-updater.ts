@@ -122,11 +122,13 @@ export class ProjectUpdater {
 		notesContent: string,
 		dateStr: string
 	): Promise<boolean> {
-		// Build project context from metadata
-		const projectContext = this.buildProjectContext(project);
+		// Get project content first (needed for both context and updates)
+		const projectContent = await this.projectFinder.getProjectContent(project);
+
+		// Build enhanced project context from metadata and content
+		const projectContext = this.buildProjectContext(project, projectContent);
 
 		// Get existing updates section for context
-		const projectContent = await this.projectFinder.getProjectContent(project);
 		const existingUpdates = this.extractExistingUpdates(projectContent);
 
 		// Check if we already have an update for this date
@@ -135,10 +137,18 @@ export class ProjectUpdater {
 			return false;
 		}
 
+		// Pre-filter notes to only potentially relevant sections
+		const relevantContent = this.extractRelevantContent(notesContent, project);
+
+		if (!relevantContent || relevantContent.trim().length === 0) {
+			console.log(`Daily Organizer: No content mentioning ${project.name} found in daily notes`);
+			return false;
+		}
+
 		// Generate update using LLM
 		const response = await this.llmService.analyzeForProject(
 			projectContext,
-			notesContent,
+			relevantContent,
 			existingUpdates
 		);
 
@@ -152,37 +162,65 @@ export class ProjectUpdater {
 			return false;
 		}
 
+		// Check if LLM indicated no relevant updates
+		if (response.content.includes('NO_RELEVANT_UPDATES')) {
+			console.log(`Daily Organizer: No relevant updates for ${project.name}`);
+			return false;
+		}
+
 		// Insert update into project page
 		await this.insertUpdateWithDate(project, response.content, dateStr);
 		return true;
 	}
 
-	private buildProjectContext(project: ProjectMetadata): string {
-		const lines: string[] = [];
+	private buildProjectContext(project: ProjectMetadata, projectContent: string): string {
+		const sections: string[] = [];
 
-		lines.push(`Project: ${project.name}`);
+		// Basic project info
+		sections.push(`# Project: ${project.name}\n`);
 
+		// Frontmatter metadata
+		const metadata: string[] = [];
 		if (project.description) {
-			lines.push(`Description: ${project.description}`);
+			metadata.push(`Description: ${project.description}`);
 		}
-
 		if (project.goals) {
-			lines.push(`Goals: ${project.goals}`);
+			metadata.push(`Goals: ${project.goals}`);
+		}
+		if (project.status) {
+			metadata.push(`Status: ${project.status}`);
 		}
 
-		if (project.status) {
-			lines.push(`Status: ${project.status}`);
+		// Add update guidance fields if present
+		if (project.update_focus) {
+			metadata.push(`Update Focus: ${project.update_focus}`);
+		}
+		if (project.update_keywords) {
+			metadata.push(`Keywords to Watch: ${project.update_keywords}`);
+		}
+		if (project.update_style) {
+			metadata.push(`Update Style: ${project.update_style}`);
 		}
 
 		// Add any other relevant frontmatter fields
-		const skipFields = ['path', 'name', 'description', 'goals', 'status', 'tags', 'position'];
+		const skipFields = ['path', 'name', 'description', 'goals', 'status', 'tags', 'position', 'update_focus', 'update_keywords', 'update_style'];
 		for (const [key, value] of Object.entries(project)) {
 			if (!skipFields.includes(key) && value && typeof value === 'string') {
-				lines.push(`${key}: ${value}`);
+				metadata.push(`${key}: ${value}`);
 			}
 		}
 
-		return lines.join('\n');
+		if (metadata.length > 0) {
+			sections.push(`## Metadata\n${metadata.join('\n')}`);
+		}
+
+		// Extract key sections from project page
+		const projectSections = this.extractProjectSections(projectContent);
+		if (projectSections) {
+			sections.push(`## Project Content\n${projectSections}`);
+		}
+
+		return sections.join('\n\n');
 	}
 
 	private extractExistingUpdates(content: string): string | undefined {
@@ -191,13 +229,55 @@ export class ProjectUpdater {
 			return undefined;
 		}
 
-		// Get the last few updates for context (to avoid repetition)
+		// Get the last 5 complete updates for context (to understand style and avoid repetition)
 		const sectionContent = content.slice(section.contentStart, section.end);
+		const updates: string[] = [];
 		const lines = sectionContent.split('\n');
 
-		// Take last 20 lines or so for context
-		const recentLines = lines.slice(-20);
-		return recentLines.join('\n').trim() || undefined;
+		let currentUpdate = '';
+		let foundUpdates = 0;
+
+		// Parse updates from bottom to top (most recent first)
+		for (let i = lines.length - 1; i >= 0 && foundUpdates < 5; i--) {
+			const line = lines[i];
+			if (!line) continue;
+
+			// Check if this is a date header (### YYYY-MM-DD)
+			if (line.match(/^###\s+\d{4}-\d{2}-\d{2}/)) {
+				if (currentUpdate.trim()) {
+					updates.unshift(line + '\n' + currentUpdate.trim());
+					foundUpdates++;
+					currentUpdate = '';
+				}
+			} else if (foundUpdates < 5) {
+				currentUpdate = line + '\n' + currentUpdate;
+			}
+		}
+
+		return updates.length > 0 ? updates.join('\n\n') : undefined;
+	}
+
+	private extractProjectSections(content: string): string {
+		const sections: string[] = [];
+
+		// Try to find and extract key sections
+		const sectionNames = ['## Overview', '## Goals', '## Objectives', '## Status', '## Current Focus', '## Description'];
+
+		for (const sectionName of sectionNames) {
+			const section = findSectionByHeader(content, sectionName);
+			if (section) {
+				const sectionContent = content.slice(section.contentStart, section.end).trim();
+				// Limit to first 300 characters to avoid token bloat
+				const truncated = sectionContent.length > 300
+					? sectionContent.slice(0, 300) + '...'
+					: sectionContent;
+				if (truncated) {
+					sections.push(`${sectionName}\n${truncated}`);
+				}
+			}
+		}
+
+		return sections.join('\n\n');
 	}
 
 	private async getTodaysNotesContent(): Promise<string | null> {
@@ -210,6 +290,71 @@ export class ProjectUpdater {
 		}
 
 		return this.app.vault.read(todayNote);
+	}
+
+	private extractRelevantContent(dailyNotes: string, project: ProjectMetadata): string {
+		const lines = dailyNotes.split('\n');
+		const relevantSections: string[] = [];
+		const projectName = project.name.toLowerCase();
+
+		// Look for lines that mention the project name or have project-related keywords
+		let currentSection: string[] = [];
+		let inRelevantSection = false;
+		let contextLinesAfter = 0;
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			if (!line) continue;
+
+			const lineLower = line.toLowerCase();
+
+			// Check if line mentions the project
+			const mentionsProject = lineLower.includes(projectName) ||
+			                        line.includes(this.settings.projectTag);
+
+			if (mentionsProject) {
+				// Start a new relevant section
+				inRelevantSection = true;
+				contextLinesAfter = 5; // Include 5 lines after mention for context
+
+				// Include a few lines before for context (if available)
+				const contextBefore = Math.max(0, i - 3);
+				for (let j = contextBefore; j < i; j++) {
+					const prevLine = lines[j];
+					if (prevLine && !currentSection.includes(prevLine)) {
+						currentSection.push(prevLine);
+					}
+				}
+				currentSection.push(line);
+			} else if (inRelevantSection) {
+				// We're in a relevant section, include the line
+				currentSection.push(line);
+				contextLinesAfter--;
+
+				// Check if we've reached the end of the section
+				if (contextLinesAfter <= 0 || line.trim().length === 0) {
+					// End of this relevant section
+					if (currentSection.length > 0) {
+						relevantSections.push(currentSection.join('\n'));
+						currentSection = [];
+					}
+					inRelevantSection = false;
+				}
+			}
+		}
+
+		// Add any remaining section
+		if (currentSection.length > 0) {
+			relevantSections.push(currentSection.join('\n'));
+		}
+
+		// If no specific mentions found, return empty string (let LLM handle full content)
+		if (relevantSections.length === 0) {
+			return '';
+		}
+
+		// Join all relevant sections with separators
+		return relevantSections.join('\n\n---\n\n');
 	}
 
 	private async insertUpdateWithDate(project: ProjectMetadata, update: string, dateStr: string): Promise<void> {

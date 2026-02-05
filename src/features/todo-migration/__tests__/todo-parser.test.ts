@@ -401,6 +401,7 @@ More text`;
 				indentLevel: 0,
 				children: [],
 				parent: null,
+				isCheckbox: true,
 			};
 
 			const result = parser.formatTodoLine(todo);
@@ -419,6 +420,7 @@ More text`;
 				indentLevel: 0,
 				children: [],
 				parent: null,
+				isCheckbox: true,
 			};
 
 			const result = parser.formatTodoLine(todo);
@@ -437,6 +439,7 @@ More text`;
 				indentLevel: 1,
 				children: [],
 				parent: null,
+				isCheckbox: true,
 			};
 
 			const result = parser.formatTodoLine(todo);
@@ -455,11 +458,123 @@ More text`;
 				indentLevel: 0,
 				children: [],
 				parent: null,
+				isCheckbox: true,
 			};
 
 			const result = parser.formatTodoLine(todo, '2024-02-04');
 
 			expect(result).toContain('[created:: 2024-02-04]');
+		});
+
+		it('should format plain bullet (non-checkbox)', () => {
+			const todo: TodoItem = {
+				line: 0,
+				content: 'Plain bullet item',
+				isCompleted: false,
+				createdDate: null,
+				rawLine: '  - Plain bullet item',
+				indentation: '  ',
+				indentLevel: 1,
+				children: [],
+				parent: null,
+				isCheckbox: false,
+			};
+
+			const result = parser.formatTodoLine(todo);
+
+			expect(result).toBe('  - Plain bullet item');
+			expect(result).not.toContain('[');
+		});
+	});
+
+	describe('Plain Bullet Support', () => {
+		it('should parse nested plain bullets under todos', () => {
+			const content = `- [ ] Parent task
+  - Plain bullet child
+  - [ ] Checkbox child`;
+
+			const todos = parser.parseTodos(content);
+
+			expect(todos).toHaveLength(1);
+			expect(todos[0].content).toBe('Parent task');
+			expect(todos[0].isCheckbox).toBe(true);
+			expect(todos[0].children).toHaveLength(2);
+			expect(todos[0].children[0].content).toBe('Plain bullet child');
+			expect(todos[0].children[0].isCheckbox).toBe(false);
+			expect(todos[0].children[1].content).toBe('Checkbox child');
+			expect(todos[0].children[1].isCheckbox).toBe(true);
+		});
+
+		it('should migrate plain bullets along with parent todo', () => {
+			const content = `- [ ] Parent task
+  - Plain bullet detail
+  - Another detail
+- [x] Completed task
+  - Completed detail`;
+
+			const todos = parser.parseUncompletedTodos(content);
+
+			expect(todos).toHaveLength(1);
+			expect(todos[0].content).toBe('Parent task');
+			expect(todos[0].children).toHaveLength(2);
+		});
+
+		it('should not include root-level plain bullets', () => {
+			const content = `- Root plain bullet
+- [ ] Todo item
+  - Child bullet`;
+
+			const todos = parser.parseTodos(content);
+
+			// Root plain bullet should not be included
+			expect(todos).toHaveLength(1);
+			expect(todos[0].content).toBe('Todo item');
+			expect(todos[0].children).toHaveLength(1);
+		});
+
+		it('should format plain bullets correctly', () => {
+			const content = `- [ ] Parent
+  - Plain bullet
+  - [ ] Checkbox`;
+
+			const todos = parser.parseUncompletedTodos(content);
+			const formatted = parser.formatTodosForSection(todos, '2024-02-04');
+
+			const lines = formatted.split('\n');
+			expect(lines[0]).toContain('- [ ] Parent');
+			expect(lines[1]).toBe('  - Plain bullet');
+			expect(lines[1]).not.toContain('[created::');
+			expect(lines[2]).toContain('- [ ] Checkbox');
+		});
+
+		it('should handle deeply nested plain bullets', () => {
+			const content = `- [ ] Level 0
+  - Level 1 bullet
+    - Level 2 bullet
+      - Level 3 bullet`;
+
+			const todos = parser.parseTodos(content);
+
+			expect(todos).toHaveLength(1);
+			expect(todos[0].children).toHaveLength(1);
+			expect(todos[0].children[0].children).toHaveLength(1);
+			expect(todos[0].children[0].children[0].children).toHaveLength(1);
+		});
+
+		it('should remove plain bullets when parent is removed', () => {
+			const content = `- [ ] Parent
+  - Plain bullet
+  - [ ] Checkbox
+- [ ] Keep this`;
+
+			const todos = parser.parseTodos(content);
+			const toRemove = [todos[0]];
+			const result = parser.removeTodosFromContent(content, toRemove);
+
+			expect(result).not.toContain('Parent');
+			expect(result).not.toContain('Plain bullet');
+			expect(result).not.toContain('Checkbox');
+			expect(result).toContain('Keep this');
 		});
 	});
 

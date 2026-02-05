@@ -2,6 +2,7 @@ import type { TodoItem } from '../../types';
 
 export class TodoParser {
 	private static readonly TODO_REGEX = /^(\s*)- \[([ xX])\] (.*)$/;
+	private static readonly BULLET_REGEX = /^(\s*)- (.*)$/;
 	private static readonly CREATED_REGEX = /\[created::\s*(\d{4}-\d{2}-\d{2})\]/;
 
 	private buildTaskTree(todos: TodoItem[]): TodoItem[] {
@@ -38,13 +39,21 @@ export class TodoParser {
 	}
 
 	private isSubtreeComplete(todo: TodoItem): boolean {
-		// If has no children, check only this task
-		if (todo.children.length === 0) {
-			return todo.isCompleted;
+		// Plain bullets (non-checkbox items) are always considered complete
+		// They're just notes/details and don't affect the subtree completion status
+		if (!todo.isCheckbox) {
+			// Still check children recursively in case there are nested checkboxes
+			return todo.children.every(child => this.isSubtreeComplete(child));
 		}
 
-		// If has children, check if ALL children subtrees are complete
-		// Note: Parent's completion status is ignored per requirements
+		// For checkbox items, check completion status
+		// If this checkbox is incomplete, entire subtree is incomplete
+		if (!todo.isCompleted) {
+			return false;
+		}
+
+		// If this checkbox is complete, check if all checkbox children are also complete
+		// (plain bullet children are skipped as they're always considered complete)
 		return todo.children.every(child => this.isSubtreeComplete(child));
 	}
 
@@ -66,12 +75,13 @@ export class TodoParser {
 			const line = lines[i];
 			if (!line) continue;
 
-			const match = line.match(TodoParser.TODO_REGEX);
+			// Try to match checkbox first
+			const todoMatch = line.match(TodoParser.TODO_REGEX);
 
-			if (match) {
-				const indentation = match[1] ?? '';
-				const checkbox = match[2] ?? ' ';
-				const todoContent = match[3] ?? '';
+			if (todoMatch) {
+				const indentation = todoMatch[1] ?? '';
+				const checkbox = todoMatch[2] ?? ' ';
+				const todoContent = todoMatch[3] ?? '';
 				const isCompleted = checkbox.toLowerCase() === 'x';
 				const createdMatch = todoContent.match(TodoParser.CREATED_REGEX);
 
@@ -90,7 +100,37 @@ export class TodoParser {
 					indentLevel: 0, // Will be calculated next
 					children: [],
 					parent: null,
+					isCheckbox: true,
 				});
+			} else {
+				// Try to match plain bullet
+				const bulletMatch = line.match(TodoParser.BULLET_REGEX);
+
+				if (bulletMatch) {
+					const indentation = bulletMatch[1] ?? '';
+					const bulletContent = bulletMatch[2] ?? '';
+
+					// Only include bullets that are indented (children of todos)
+					if (indentation.length > 0) {
+						// Detect indent size from first indented item
+						if (detectedIndentSize === null) {
+							detectedIndentSize = indentation.length;
+						}
+
+						todos.push({
+							line: i,
+							content: bulletContent,
+							isCompleted: false, // Plain bullets are treated as incomplete
+							createdDate: null,
+							rawLine: line,
+							indentation: indentation,
+							indentLevel: 0, // Will be calculated next
+							children: [],
+							parent: null,
+							isCheckbox: false,
+						});
+					}
+				}
 			}
 		}
 
@@ -139,15 +179,20 @@ export class TodoParser {
 	}
 
 	formatTodoLine(todo: TodoItem, newCreatedDate?: string): string {
-		const checkbox = todo.isCompleted ? 'x' : ' ';
 		let content = todo.content;
 
-		// Add created date if not present and date is provided
-		if (newCreatedDate && !todo.createdDate) {
+		// Add created date if not present and date is provided (only for checkbox items)
+		if (todo.isCheckbox && newCreatedDate && !todo.createdDate) {
 			content = this.addCreatedMetadata(content, newCreatedDate);
 		}
 
-		return `${todo.indentation}- [${checkbox}] ${content}`;
+		// Format as checkbox or plain bullet
+		if (todo.isCheckbox) {
+			const checkbox = todo.isCompleted ? 'x' : ' ';
+			return `${todo.indentation}- [${checkbox}] ${content}`;
+		} else {
+			return `${todo.indentation}- ${content}`;
+		}
 	}
 
 	formatTodosForSection(todos: TodoItem[], createdDate: string): string {

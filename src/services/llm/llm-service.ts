@@ -76,17 +76,62 @@ export class LLMService {
 		existingUpdates?: string
 	): Promise<LLMResponse> {
 		const systemPrompt = `You are an assistant helping to track project progress.
-Based on the project context and daily notes provided, generate a brief progress update.
-Focus on relevant accomplishments, tasks completed, and any blockers or notes.
-Keep the update concise (2-4 bullet points).`;
+Your task is to extract ONLY the information from today's notes that is directly relevant to this specific project.
 
-		let prompt = `Project Context:\n${projectContext}\n\nToday's Notes:\n${dailyNotes}`;
+IMPORTANT RULES:
+1. Only include updates that explicitly mention or relate to this project. If unsure, omit it.
+2. Ignore unrelated work, personal notes, or other projects
+3. If nothing in the daily notes is relevant to this project, respond with "NO_RELEVANT_UPDATES"
+4. Use the project context (goals, current focus, status) to determine what is relevant
+5. If "Update Focus" is specified, prioritize those aspects in your summary
+6. If "Keywords to Watch" are provided, pay special attention to those topics
+7. If "Update Style" is specified, match that tone and detail level
+8. Match the format and style of previous updates for consistency
+9. Keep the update concise (2-4 bullet points unless style guide says otherwise)
+10. Focus on: accomplishments, tasks completed, blockers, decisions, or progress made`;
+
+		let prompt = `${projectContext}\n\n`;
 
 		if (existingUpdates) {
-			prompt += `\n\nPrevious Updates (for context):\n${existingUpdates}`;
+			prompt += `## Recent Updates (for style reference and avoiding repetition)\n${existingUpdates}\n\n`;
 		}
 
-		prompt += '\n\nPlease generate a brief progress update for today:';
+		prompt += `## Today's Daily Notes (Relevant Sections)\n${dailyNotes}\n\n`;
+
+		prompt += `---
+
+INSTRUCTIONS:
+1. Review the project context carefully - understand the project's goals, current focus, and status
+2. If update guidance (Update Focus, Keywords, Style) is provided, follow it closely
+3. Analyze today's daily notes and identify content relevant to THIS specific project
+4. Look at previous updates to match their style, format, and level of detail
+5. Extract ONLY information that relates to this project's goals and current work
+
+If nothing in today's notes is relevant to this project, respond with exactly:
+NO_RELEVANT_UPDATES
+
+Otherwise, generate a progress update that:
+- Matches the style and format of previous updates (bullet points, detail level, technical language)
+- Focuses on the areas specified in "Update Focus" (if provided)
+- Emphasizes the "Keywords to Watch" (if provided)
+- Follows the "Update Style" guidance (if provided)
+- Is concise but informative (typically 2-4 bullet points)
+- DO NOT include a date header (### YYYY-MM-DD) - this will be added automatically
+- Start directly with the bullet points, NOT with a date
+
+IMPORTANT: Your response should be ONLY the bullet points, without any date header.
+The date will be added automatically by the system.
+
+Example of CORRECT format:
+- Implemented feature X in file.ts
+- Fixed bug in component Y
+- Added tests achieving 95% coverage
+
+Example of INCORRECT format (DO NOT DO THIS):
+### 2026-02-04
+- Implemented feature X
+
+Progress update (bullet points only, no date header):`;
 
 		return this.complete(prompt, systemPrompt);
 	}

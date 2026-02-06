@@ -71,6 +71,21 @@ describe('due-date', () => {
 				const result = addDueDateField('- [X] Task', 'due', '2025-01-20', false);
 				expect(result).toBe('- [X] Task [due:: 2025-01-20]');
 			});
+
+			it('should preserve natural language when adding due date', () => {
+				const result = addDueDateField('- [ ] write tests by lunch', 'due', '2026-02-06', false);
+				expect(result).toBe('- [ ] write tests by lunch [due:: 2026-02-06]');
+			});
+
+			it('should preserve natural language with shorthand format', () => {
+				const result = addDueDateField('- [ ] complete by end of day', 'due', '2026-02-06', true);
+				expect(result).toBe('- [ ] complete by end of day 📅2026-02-06');
+			});
+
+			it('should preserve multiple time expressions', () => {
+				const result = addDueDateField('- [ ] finish report by tomorrow at noon', 'due', '2026-02-07', false);
+				expect(result).toBe('- [ ] finish report by tomorrow at noon [due:: 2026-02-07]');
+			});
 		});
 	});
 

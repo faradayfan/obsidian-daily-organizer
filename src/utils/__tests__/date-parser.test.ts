@@ -83,6 +83,81 @@ describe('date-parser', () => {
 			});
 		});
 
+		describe('Time-of-day expressions', () => {
+			it('should extract "end of day" as today', () => {
+				const result = extractDueDate('Schedule something by end of day', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+				expect(result!.matchedText).toBe('end of day');
+			});
+
+			it('should extract "end of the day" as today', () => {
+				const result = extractDueDate('Finish by end of the day', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "eod" as today', () => {
+				const result = extractDueDate('Complete by eod', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "lunch" as today', () => {
+				const result = extractDueDate('Meeting by lunch', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "lunchtime" as today', () => {
+				const result = extractDueDate('Submit by lunchtime', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "noon" as today', () => {
+				const result = extractDueDate('Deadline due noon', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "midday" as today', () => {
+				const result = extractDueDate('Ready by midday', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "midnight" as today', () => {
+				const result = extractDueDate('Due by midnight', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "morning" as today', () => {
+				const result = extractDueDate('Call by morning', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "afternoon" as today', () => {
+				const result = extractDueDate('Review due afternoon', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "evening" as today', () => {
+				const result = extractDueDate('Finish by evening', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+
+			it('should extract "tonight" as today', () => {
+				const result = extractDueDate('Submit by tonight', referenceDate);
+				expect(result).not.toBeNull();
+				expect(result!.date.toISOString().substring(0, 10)).toBe('2025-01-15');
+			});
+		});
+
 		describe('Day of week', () => {
 			it('should extract "next Friday"', () => {
 				// Jan 15, 2025 is a Wednesday, so next Friday is Jan 24 (in following week)

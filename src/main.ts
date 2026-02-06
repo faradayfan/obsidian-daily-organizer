@@ -1,4 +1,4 @@
-import { Plugin, TFile, MarkdownView } from 'obsidian';
+import { Plugin, TFile, MarkdownView, Notice } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	DailyOrganizerSettings,
@@ -107,6 +107,21 @@ export default class DailyOrganizerPlugin extends Plugin {
 				await this.taskTagger.tagTasksInActiveFile();
 			},
 		});
+
+		// Process task metadata command
+		this.addCommand({
+			id: 'process-task-metadata',
+			name: 'Add metadata to all tasks in active file',
+			callback: async () => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view && view.editor) {
+					const count = await this.taskMetadataHandler.processTaskMetadata(view.editor);
+					new Notice(`Processed ${count} task(s)`);
+				} else {
+					new Notice('No active editor found');
+				}
+			},
+		});
 	}
 
 	private registerEventHandlers(): void {
@@ -119,18 +134,48 @@ export default class DailyOrganizerPlugin extends Plugin {
 						console.log('Daily Organizer: New daily note created:', file.basename);
 						console.log('Daily Organizer: projectAutoUpdateEnabled:', this.settings.projectAutoUpdateEnabled);
 						console.log('Daily Organizer: todoMigrationEnabled:', this.settings.todoMigrationEnabled);
+						console.log('Daily Organizer: autoTagTasksBeforeMigration:', this.settings.autoTagTasksBeforeMigration);
+						console.log('Daily Organizer: autoProcessMetadataBeforeMigration:', this.settings.autoProcessMetadataBeforeMigration);
 
-						// Auto-update projects BEFORE migrating todos
-						// This ensures the LLM sees uncompleted tasks in the previous note
-						if (this.settings.projectAutoUpdateEnabled) {
-							const previousNote = await this.findPreviousDailyNote(file);
-							console.log('Daily Organizer: Previous note found:', previousNote?.basename ?? 'none');
-							if (previousNote) {
-								await this.projectUpdater.updateProjectsFromNote(previousNote);
+						const previousNote = await this.findPreviousDailyNote(file);
+						console.log('Daily Organizer: Previous note found:', previousNote?.basename ?? 'none');
+
+						// Auto-tag tasks BEFORE metadata processing
+						// This ensures project tags are added before metadata so metadata parsing is accurate
+						if (previousNote && this.settings.taskTaggingEnabled && this.settings.autoTagTasksBeforeMigration) {
+							const taggedCount = await this.taskTagger.tagTasksInFile(previousNote);
+							console.log(`Daily Organizer: Tagged ${taggedCount} task(s) in previous note`);
+						}
+
+						// Auto-process task metadata BEFORE project updates and migration
+						// This ensures tasks have metadata before being analyzed or migrated
+						if (previousNote && this.settings.autoProcessMetadataBeforeMigration) {
+							const previousView = this.app.workspace.getActiveViewOfType(MarkdownView);
+							if (previousView && previousView.file?.path === previousNote.path && previousView.editor) {
+								const count = await this.taskMetadataHandler.processTaskMetadata(previousView.editor);
+								console.log(`Daily Organizer: Processed ${count} task(s) in previous note`);
+							} else {
+								// Open the previous note to process it
+								const leaf = this.app.workspace.getLeaf(false);
+								await leaf.openFile(previousNote);
+								const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+								if (view && view.editor) {
+									const count = await this.taskMetadataHandler.processTaskMetadata(view.editor);
+									console.log(`Daily Organizer: Processed ${count} task(s) in previous note`);
+								}
+								// Switch back to the new note
+								const newLeaf = this.app.workspace.getLeaf(false);
+								await newLeaf.openFile(file);
 							}
 						}
 
-						// Auto-migrate todos after project updates
+						// Auto-update projects BEFORE migrating todos
+						// This ensures the LLM sees uncompleted tasks in the previous note
+						if (this.settings.projectAutoUpdateEnabled && previousNote) {
+							await this.projectUpdater.updateProjectsFromNote(previousNote);
+						}
+
+						// Auto-migrate todos after project updates and metadata processing
 						// This removes completed todos from the previous note
 						if (this.settings.todoMigrationEnabled) {
 							await this.todoMigrator.migrateTodos(file);

@@ -1,4 +1,6 @@
 import { addCreatedField } from '../created-date';
+import { addDueDateField } from '../due-date';
+import { addPriorityField } from '../priority';
 
 describe('created-date', () => {
 	describe('addCreatedField()', () => {
@@ -78,6 +80,86 @@ describe('created-date', () => {
 				const result = addCreatedField('- Plain bullet', 'created', '2025-01-15', false);
 				expect(result).toBe('- Plain bullet [created:: 2025-01-15]');
 			});
+
+			it('should preserve natural language when adding created date', () => {
+				const result = addCreatedField('- [ ] high priority task', 'created', '2026-02-06', false);
+				expect(result).toBe('- [ ] high priority task [created:: 2026-02-06]');
+			});
+
+			it('should preserve natural language with shorthand format', () => {
+				const result = addCreatedField('- [ ] finish by lunch today', 'created', '2026-02-06', true);
+				expect(result).toBe('- [ ] finish by lunch today ➕2026-02-06');
+			});
+		});
+	});
+
+	describe('Combined metadata with natural language preserved', () => {
+		it('should add all metadata types while preserving natural language (inline format)', () => {
+			// Simulate the processTaskMetadata flow with removeExpression = false
+			const originalTask = '- [ ] high priority write tests by lunch';
+
+			// Step 1: Add created date
+			let task = addCreatedField(originalTask, 'created', '2026-02-06', false);
+			expect(task).toBe('- [ ] high priority write tests by lunch [created:: 2026-02-06]');
+
+			// Step 2: Add due date (natural language NOT removed)
+			task = addDueDateField(task!, 'due', '2026-02-06', false);
+			expect(task).toBe('- [ ] high priority write tests by lunch [created:: 2026-02-06] [due:: 2026-02-06]');
+
+			// Step 3: Add priority (natural language NOT removed)
+			task = addPriorityField(task!, 'priority', 'high', false);
+			expect(task).toBe('- [ ] high priority write tests by lunch [created:: 2026-02-06] [due:: 2026-02-06] [priority:: high]');
+
+			// Verify natural language is still there
+			expect(task).toContain('high priority');
+			expect(task).toContain('by lunch');
+		});
+
+		it('should add all metadata types while preserving natural language (shorthand format)', () => {
+			// Simulate the processTaskMetadata flow with removeExpression = false
+			// Using simple task text without priority/date keywords to avoid conflicts
+			const originalTask = '- [ ] complete the report';
+
+			// Step 1: Add created date
+			let task = addCreatedField(originalTask, 'created', '2026-02-06', true);
+			expect(task).not.toBeNull();
+			expect(task).toBe('- [ ] complete the report ➕2026-02-06');
+
+			// Step 2: Add due date
+			task = addDueDateField(task!, 'due', '2026-02-07', true);
+			expect(task).not.toBeNull();
+			expect(task).toBe('- [ ] complete the report ➕2026-02-06 📅2026-02-07');
+
+			// Step 3: Add priority
+			task = addPriorityField(task!, 'priority', 'high', true);
+			expect(task).not.toBeNull();
+			expect(task).toBe('- [ ] complete the report ➕2026-02-06 📅2026-02-07 ⏫');
+
+			// Verify all metadata is present
+			expect(task).toContain('➕2026-02-06'); // created
+			expect(task).toContain('📅2026-02-07'); // due
+			expect(task).toContain('⏫'); // priority
+			expect(task).toContain('complete the report'); // original text
+		});
+
+		it('should handle completed tasks with all metadata preserved', () => {
+			const originalTask = '- [x] attended the meeting';
+
+			// Add created, due, and priority
+			let task = addCreatedField(originalTask, 'created', '2026-02-05', true);
+			expect(task).not.toBeNull();
+			expect(task).toBe('- [x] attended the meeting ➕2026-02-05');
+
+			task = addDueDateField(task!, 'due', '2026-02-06', true);
+			expect(task).not.toBeNull();
+			expect(task).toBe('- [x] attended the meeting ➕2026-02-05 📅2026-02-06');
+
+			task = addPriorityField(task!, 'priority', 'high', true);
+			expect(task).not.toBeNull();
+			expect(task).toBe('- [x] attended the meeting ➕2026-02-05 📅2026-02-06 ⏫');
+
+			// Verify all metadata is present
+			expect(task).toContain('attended the meeting'); // original text
 		});
 	});
 });

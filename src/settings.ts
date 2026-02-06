@@ -27,6 +27,9 @@ export interface DailyOrganizerSettings {
 	autoUpdateProjectKeywords: boolean;
 	generateKeywordsAsArray: boolean;
 
+	// Task Metadata Processing
+	autoProcessMetadataBeforeMigration: boolean;
+
 	// Task Completion Date Settings
 	completionDateEnabled: boolean;
 	completionDateField: string;
@@ -44,8 +47,16 @@ export interface DailyOrganizerSettings {
 	dueDateAutoDetect: boolean;
 	dueDateRemoveExpression: boolean;
 
+	// Task Priority Settings
+	priorityEnabled: boolean;
+	priorityField: string;
+	priorityUseShorthand: boolean;
+	priorityAutoDetect: boolean;
+	priorityRemoveExpression: boolean;
+
 	// Task Tagging Settings
 	taskTaggingEnabled: boolean;
+	autoTagTasksBeforeMigration: boolean;
 	ignoreProjectTaggingTag: string;
 }
 
@@ -63,6 +74,9 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 	// Todo Migration Settings
 	todoMigrationEnabled: true,
 	todoSectionTag: '#todos',
+
+	// Task Metadata Processing
+	autoProcessMetadataBeforeMigration: false,
 
 	// Project Updates Settings
 	projectTag: '#project',
@@ -89,8 +103,16 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 	dueDateAutoDetect: true,
 	dueDateRemoveExpression: true,
 
+	// Task Priority Settings
+	priorityEnabled: true,
+	priorityField: 'priority',
+	priorityUseShorthand: true,
+	priorityAutoDetect: true,
+	priorityRemoveExpression: true,
+
 	// Task Tagging Settings
 	taskTaggingEnabled: true,
+	autoTagTasksBeforeMigration: false,
 	ignoreProjectTaggingTag: '#ignore-project-tagging',
 };
 
@@ -212,6 +234,26 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.todoSectionTag)
 				.onChange(async (value) => {
 					this.plugin.settings.todoSectionTag = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto-tag Tasks Before Migration')
+			.setDesc('Automatically add project tags to tasks in the previous daily note before migration (runs before metadata processing)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoTagTasksBeforeMigration)
+				.onChange(async (value) => {
+					this.plugin.settings.autoTagTasksBeforeMigration = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto-process Task Metadata')
+			.setDesc('Automatically add metadata (created date, due date, priority) to all tasks before migration')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoProcessMetadataBeforeMigration)
+				.onChange(async (value) => {
+					this.plugin.settings.autoProcessMetadataBeforeMigration = value;
 					await this.plugin.saveSettings();
 				}));
 
@@ -403,6 +445,60 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.dueDateRemoveExpression)
 					.onChange(async (value) => {
 						this.plugin.settings.dueDateRemoveExpression = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		new Setting(containerEl)
+			.setName('Enable Priority')
+			.setDesc('Add a dataview-compliant priority when tasks are created')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.priorityEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.priorityEnabled = value;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		if (this.plugin.settings.priorityEnabled) {
+			new Setting(containerEl)
+				.setName('Priority Field')
+				.setDesc('The dataview field name to use (e.g., "priority" creates [priority:: high])')
+				.addText(text => text
+					.setPlaceholder('priority')
+					.setValue(this.plugin.settings.priorityField)
+					.onChange(async (value) => {
+						this.plugin.settings.priorityField = value || 'priority';
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Use Shorthand Format')
+				.setDesc('Use shorthand emoji format (⏫ high, 🔼 medium, 🔽 low, ⏬ lowest) instead of inline field format')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.priorityUseShorthand)
+					.onChange(async (value) => {
+						this.plugin.settings.priorityUseShorthand = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Auto-detect Priority')
+				.setDesc('Automatically parse priority from natural language (e.g., "high priority", "urgent", "low priority")')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.priorityAutoDetect)
+					.onChange(async (value) => {
+						this.plugin.settings.priorityAutoDetect = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Remove Natural Language Expression')
+				.setDesc('Remove the natural language text after parsing (e.g., remove "high priority" from task)')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.priorityRemoveExpression)
+					.onChange(async (value) => {
+						this.plugin.settings.priorityRemoveExpression = value;
 						await this.plugin.saveSettings();
 					}));
 		}

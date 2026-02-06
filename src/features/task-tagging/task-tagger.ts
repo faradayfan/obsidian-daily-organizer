@@ -40,23 +40,34 @@ export class TaskTagger {
 			return;
 		}
 
-		const projects = await this.projectFinder.findProjects();
-		if (projects.length === 0) {
-			new Notice(`No projects found with ${this.settings.projectTag} tag.`);
-			return;
-		}
-
-		const projectMaps = TaskTagger.buildProjectKeywordMaps(projects);
-		const content = await this.app.vault.read(view.file);
-		const excludeTags = [this.settings.todoSectionTag, this.settings.ignoreProjectTaggingTag];
-		const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps, excludeTags);
-
+		const taggedCount = await this.tagTasksInFile(view.file);
 		if (taggedCount > 0) {
-			await this.app.vault.modify(view.file, newContent);
 			new Notice(`Tagged ${taggedCount} item(s) with project tags.`);
 		} else {
 			new Notice('No tasks or sections matched any project keywords.');
 		}
+	}
+
+	/**
+	 * Tag tasks in a specific file. Returns the number of items tagged.
+	 * This can be called automatically or manually.
+	 */
+	async tagTasksInFile(file: import('obsidian').TFile): Promise<number> {
+		const projects = await this.projectFinder.findProjects();
+		if (projects.length === 0) {
+			return 0;
+		}
+
+		const projectMaps = TaskTagger.buildProjectKeywordMaps(projects);
+		const content = await this.app.vault.read(file);
+		const excludeTags = [this.settings.todoSectionTag, this.settings.ignoreProjectTaggingTag];
+		const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps, excludeTags);
+
+		if (taggedCount > 0) {
+			await this.app.vault.modify(file, newContent);
+		}
+
+		return taggedCount;
 	}
 
 	static toKebabCaseTag(name: string): string {

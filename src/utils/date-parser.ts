@@ -72,6 +72,16 @@ function parseRelativeSimple(match: RegExpMatchArray, referenceDate: Date): Date
 }
 
 /**
+ * Parse time-of-day expressions that imply "today": "end of day", "eod", "lunch", "noon", etc.
+ */
+function parseTimeOfDay(match: RegExpMatchArray, referenceDate: Date): Date | null {
+	// All time-of-day expressions resolve to today
+	const date = new Date(referenceDate);
+	date.setHours(0, 0, 0, 0); // Normalize to start of day
+	return date;
+}
+
+/**
  * Parse relative offset: "in 3 days", "in 2 weeks"
  */
 function parseRelativeOffset(match: RegExpMatchArray, referenceDate: Date): Date | null {
@@ -146,6 +156,9 @@ const DATE_PATTERNS: DatePattern[] = [
 
 	// Relative: "tomorrow", "today"
 	{ regex: /\b(tomorrow|today)\b/i, parser: parseRelativeSimple },
+
+	// Time-of-day expressions that imply "today": "end of day", "eod", "lunch", "noon", "midnight", etc.
+	{ regex: /\b(end of (?:the )?day|eod|lunch(?:time)?|noon|midday|midnight|morning|afternoon|evening|tonight)\b/i, parser: parseTimeOfDay },
 
 	// Relative offset: "in 3 days", "in 2 weeks"
 	{ regex: /\bin\s+(\d+)\s+(day|week|month)s?\b/i, parser: parseRelativeOffset },

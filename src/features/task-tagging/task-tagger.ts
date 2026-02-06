@@ -11,6 +11,7 @@ export interface ProjectKeywordMap {
 
 const TASK_REGEX = /^(\s*- \[[ xX]\] )(.*)/;
 const LIST_ITEM_REGEX = /^(\s*)- (?:\[[ xX]\] )?(.*)/;
+const HEADER_REGEX = /^(#{1,6})\s+(.*)/;
 
 export class TaskTagger {
 	private app: App;
@@ -47,13 +48,14 @@ export class TaskTagger {
 
 		const projectMaps = TaskTagger.buildProjectKeywordMaps(projects);
 		const content = await this.app.vault.read(view.file);
-		const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
+		const excludeTags = [this.settings.todoSectionTag, this.settings.ignoreProjectTaggingTag];
+		const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps, excludeTags);
 
 		if (taggedCount > 0) {
 			await this.app.vault.modify(view.file, newContent);
-			new Notice(`Tagged ${taggedCount} task(s) with project tags.`);
+			new Notice(`Tagged ${taggedCount} item(s) with project tags.`);
 		} else {
-			new Notice('No tasks matched any project keywords.');
+			new Notice('No tasks or sections matched any project keywords.');
 		}
 	}
 
@@ -132,6 +134,62 @@ export class TaskTagger {
 		return prefix + content;
 	}
 
+	static appendTagsToHeaderLine(line: string, tags: string[]): string {
+		const match = line.match(HEADER_REGEX);
+		if (!match) return line;
+
+		const tagsToAdd = tags.filter(tag => !TaskTagger.hasTag(line, tag));
+		if (tagsToAdd.length === 0) return line;
+
+		return line.trimEnd() + ' ' + tagsToAdd.join(' ');
+	}
+
+	static tagSectionHeaders(lines: string[], projectMaps: ProjectKeywordMap[], excludeTags: string[] = []): { newLines: string[]; taggedCount: number } {
+		const newLines = [...lines];
+		let taggedCount = 0;
+
+		// Collect all headers with their line indices and levels
+		const headers: { lineIndex: number; level: number }[] = [];
+		for (let i = 0; i < lines.length; i++) {
+			const match = lines[i]?.match(HEADER_REGEX);
+			if (match) {
+				headers.push({ lineIndex: i, level: (match[1] as string).length });
+			}
+		}
+
+		for (let h = 0; h < headers.length; h++) {
+			const header = headers[h] as { lineIndex: number; level: number };
+			const contentStart = header.lineIndex + 1;
+
+			// Find section end: next header of any level (direct content only)
+			const nextHeader = headers[h + 1];
+			const contentEnd = nextHeader ? nextHeader.lineIndex : lines.length;
+
+			const headerLine = lines[header.lineIndex] as string;
+
+			// Skip headers that contain any excluded tag
+			if (excludeTags.some(tag => headerLine.includes(tag))) continue;
+
+			// Combine header text + section body for keyword matching
+			const headerMatch = headerLine.match(HEADER_REGEX);
+			const headerText = headerMatch ? (headerMatch[2] as string) : '';
+			const bodyText = lines.slice(contentStart, contentEnd).join(' ');
+			const combinedText = headerText + ' ' + bodyText;
+
+			const matchingTags = TaskTagger.findMatchingTags(combinedText, projectMaps);
+			if (matchingTags.length > 0) {
+				const currentLine = newLines[header.lineIndex] as string;
+				const newLine = TaskTagger.appendTagsToHeaderLine(currentLine, matchingTags);
+				if (newLine !== currentLine) {
+					newLines[header.lineIndex] = newLine;
+					taggedCount++;
+				}
+			}
+		}
+
+		return { newLines, taggedCount };
+	}
+
 	/**
 	 * Collect the text from a root task and all its indented children
 	 * (checkboxes and plain bullets). Returns the combined text and
@@ -160,7 +218,7 @@ export class TaskTagger {
 		return { combinedText: textParts.join(' '), endIndex };
 	}
 
-	static processFileContent(content: string, projectMaps: ProjectKeywordMap[]): { newContent: string; taggedCount: number } {
+	static processFileContent(content: string, projectMaps: ProjectKeywordMap[], excludeTags: string[] = []): { newContent: string; taggedCount: number } {
 		const lines = content.split('\n');
 		let taggedCount = 0;
 		const newLines = [...lines];
@@ -188,6 +246,13 @@ export class TaskTagger {
 
 			i = endIndex + 1;
 		}
+
+		// Pass 2: Tag section headers
+		const headerResult = TaskTagger.tagSectionHeaders(newLines, projectMaps, excludeTags);
+		for (let j = 0; j < headerResult.newLines.length; j++) {
+			newLines[j] = headerResult.newLines[j] as string;
+		}
+		taggedCount += headerResult.taggedCount;
 
 		return {
 			newContent: newLines.join('\n'),

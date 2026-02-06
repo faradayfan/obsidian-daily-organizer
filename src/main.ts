@@ -93,7 +93,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 		// Task tagging command
 		this.addCommand({
 			id: 'tag-tasks',
-			name: 'Tag tasks with project keywords',
+			name: 'Tag tasks and sections with project keywords',
 			callback: async () => {
 				await this.taskTagger.tagTasksInActiveFile();
 			},

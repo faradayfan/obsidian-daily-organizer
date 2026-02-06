@@ -441,9 +441,10 @@ export class ProjectUpdater {
 		// Track which lines are already included via tagged tasks to avoid duplicates
 		const taggedLineRanges: Set<number> = new Set();
 
-		// Pass 1: Find root tasks with the project tag and include their full subtrees
+		// Pass 1a: Find root tasks with the project tag and include their full subtrees
 		const LIST_ITEM_REGEX = /^(\s*)- (?:\[[ xX]\] )?(.*)/;
 		const ROOT_TASK_REGEX = /^- \[[ xX]\] /;
+		const HEADER_REGEX = /^(#{1,6})\s+(.*)/;
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
@@ -470,6 +471,33 @@ export class ProjectUpdater {
 			}
 
 			relevantSections.push(subtreeLines.join('\n'));
+		}
+
+		// Pass 1b: Find section headers with the project tag and include their full section
+		for (let i = 0; i < lines.length; i++) {
+			if (taggedLineRanges.has(i)) continue;
+			const line = lines[i];
+			if (!line) continue;
+
+			const headerMatch = line.match(HEADER_REGEX);
+			if (!headerMatch) continue;
+			if (!TaskTagger.hasTag(line, projectTag)) continue;
+
+			const headerLevel = (headerMatch[1] as string).length;
+			const sectionLines: string[] = [line];
+			taggedLineRanges.add(i);
+
+			// Collect all lines until the next header of equal or higher level
+			for (let j = i + 1; j < lines.length; j++) {
+				const nextLine = lines[j];
+				if (nextLine === undefined) break;
+				const nextHeaderMatch = nextLine.match(HEADER_REGEX);
+				if (nextHeaderMatch && (nextHeaderMatch[1] as string).length <= headerLevel) break;
+				sectionLines.push(nextLine);
+				taggedLineRanges.add(j);
+			}
+
+			relevantSections.push(sectionLines.join('\n'));
 		}
 
 		// Pass 2: Keyword/name-based matching (existing logic), skipping already-tagged lines
@@ -547,12 +575,27 @@ export class ProjectUpdater {
 		// Format the update entry
 		const updateEntry = `### ${dateStr}\n${update}`;
 
-		// Insert after the tag (user controls positioning by where they place the tag)
-		const newContent = insertAfterTag(
-			content,
-			this.settings.projectUpdateTag,
-			updateEntry
-		);
+		let newContent: string;
+
+		if (this.settings.projectUpdatePosition === 'bottom') {
+			// Append at the end of the daily-updates section
+			const section = findSectionByTag(content, this.settings.projectUpdateTag);
+			if (section) {
+				const beforeEnd = content.slice(0, section.end);
+				const afterEnd = content.slice(section.end);
+				const separator = beforeEnd.endsWith('\n') ? '' : '\n';
+				newContent = beforeEnd + separator + updateEntry + '\n' + afterEnd;
+			} else {
+				newContent = content + '\n\n' + this.settings.projectUpdateTag + '\n' + updateEntry;
+			}
+		} else {
+			// Insert at the top, right after the tag line
+			newContent = insertAfterTag(
+				content,
+				this.settings.projectUpdateTag,
+				updateEntry
+			);
+		}
 
 		await this.app.vault.modify(file, newContent);
 	}

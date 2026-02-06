@@ -36,6 +36,7 @@ export interface DailyOrganizerSettings {
 
 	// Task Tagging Settings
 	taskTaggingEnabled: boolean;
+	ignoreProjectTaggingTag: string;
 }
 
 export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
@@ -70,6 +71,7 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 
 	// Task Tagging Settings
 	taskTaggingEnabled: true,
+	ignoreProjectTaggingTag: '#ignore-project-tagging',
 };
 
 export class DailyOrganizerSettingTab extends PluginSettingTab {
@@ -306,6 +308,17 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.taskTaggingEnabled)
 				.onChange(async (value) => {
 					this.plugin.settings.taskTaggingEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Ignore Project Tagging Tag')
+			.setDesc('Section headers containing this tag will be excluded from project tagging')
+			.addText(text => text
+				.setPlaceholder('#ignore-project-tagging')
+				.setValue(this.plugin.settings.ignoreProjectTaggingTag)
+				.onChange(async (value) => {
+					this.plugin.settings.ignoreProjectTaggingTag = value;
 					await this.plugin.saveSettings();
 				}));
 	}

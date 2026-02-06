@@ -1,9 +1,11 @@
 import { Editor, MarkdownView } from 'obsidian';
 import { DailyOrganizerSettings } from '../../settings';
 import { formatDate } from '../../utils/date-utils';
+import { extractDueDate, removeDueDateExpression } from '../../utils/date-parser';
 import { TASK_REGEX } from './completion-date';
 import { addCompletionField, removeCompletionField } from './completion-date';
 import { addCreatedField } from './created-date';
+import { addDueDateField } from './due-date';
 
 interface LineState {
 	isTask: boolean;
@@ -27,7 +29,7 @@ export class TaskMetadataHandler {
 	 * Scans all lines to detect changes regardless of cursor position.
 	 */
 	handleEditorChange(editor: Editor, view: MarkdownView): void {
-		if (!this.settings.completionDateEnabled && !this.settings.createdDateEnabled) {
+		if (!this.settings.completionDateEnabled && !this.settings.createdDateEnabled && !this.settings.dueDateEnabled) {
 			return;
 		}
 
@@ -74,6 +76,36 @@ export class TaskMetadataHandler {
 					isTask: updatedMatch !== null,
 					isCompleted: updatedMatch ? updatedMatch[2]?.toLowerCase() === 'x' : false,
 				});
+			}
+
+			// Auto-detect due date from natural language
+			if (this.settings.dueDateEnabled && this.settings.dueDateAutoDetect && isNewTask) {
+				const parsedDate = extractDueDate(lineContent);
+				if (parsedDate) {
+					const fieldName = this.settings.dueDateField || 'due';
+					const dateStr = formatDate(parsedDate.date, 'YYYY-MM-DD');
+					const useShorthand = this.settings.dueDateUseShorthand;
+
+					// Optionally remove the natural language text
+					if (this.settings.dueDateRemoveExpression) {
+						lineContent = removeDueDateExpression(lineContent, parsedDate);
+					}
+
+					const newLine = addDueDateField(lineContent, fieldName, dateStr, useShorthand);
+					if (newLine !== null) {
+						const cursor = editor.getCursor().ch;
+						editor.setLine(i, newLine);
+						editor.setCursor({ line: i, ch: cursor });
+						lineContent = newLine;
+					}
+
+					// Re-read the line state after modification
+					const updatedMatch = lineContent.match(TASK_REGEX);
+					newStates.set(i, {
+						isTask: updatedMatch !== null,
+						isCompleted: updatedMatch ? updatedMatch[2]?.toLowerCase() === 'x' : false,
+					});
+				}
 			}
 
 			// Skip completion detection if this is the first time seeing this line
@@ -124,7 +156,7 @@ export class TaskMetadataHandler {
 	 * Initialize state tracking for current editor content
 	 */
 	initializeEditorState(editor: Editor, view: MarkdownView): void {
-		if (!this.settings.completionDateEnabled && !this.settings.createdDateEnabled) {
+		if (!this.settings.completionDateEnabled && !this.settings.createdDateEnabled && !this.settings.dueDateEnabled) {
 			return;
 		}
 

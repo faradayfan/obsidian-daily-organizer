@@ -36,6 +36,13 @@ export interface DailyOrganizerSettings {
 	createdDateField: string;
 	createdDateUseShorthand: boolean;
 
+	// Task Due Date Settings
+	dueDateEnabled: boolean;
+	dueDateField: string;
+	dueDateUseShorthand: boolean;
+	dueDateAutoDetect: boolean;
+	dueDateRemoveExpression: boolean;
+
 	// Task Tagging Settings
 	taskTaggingEnabled: boolean;
 	ignoreProjectTaggingTag: string;
@@ -72,6 +79,13 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 	createdDateEnabled: false,
 	createdDateField: 'created',
 	createdDateUseShorthand: false,
+
+	// Task Due Date Settings
+	dueDateEnabled: false,
+	dueDateField: 'due',
+	dueDateUseShorthand: false,
+	dueDateAutoDetect: true,
+	dueDateRemoveExpression: true,
 
 	// Task Tagging Settings
 	taskTaggingEnabled: true,
@@ -318,6 +332,60 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.completionDateUseShorthand)
 					.onChange(async (value) => {
 						this.plugin.settings.completionDateUseShorthand = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		new Setting(containerEl)
+			.setName('Enable Due Date')
+			.setDesc('Add a dataview-compliant due date when tasks are created')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.dueDateEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.dueDateEnabled = value;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		if (this.plugin.settings.dueDateEnabled) {
+			new Setting(containerEl)
+				.setName('Due Date Field')
+				.setDesc('The dataview field name to use (e.g., "due" creates [due:: YYYY-MM-DD])')
+				.addText(text => text
+					.setPlaceholder('due')
+					.setValue(this.plugin.settings.dueDateField)
+					.onChange(async (value) => {
+						this.plugin.settings.dueDateField = value || 'due';
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Use Shorthand Format')
+				.setDesc('Use shorthand emoji format (📅YYYY-MM-DD) instead of inline field format')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.dueDateUseShorthand)
+					.onChange(async (value) => {
+						this.plugin.settings.dueDateUseShorthand = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Auto-detect Due Dates')
+				.setDesc('Automatically parse due dates from natural language (e.g., "due tomorrow", "by Jan 15")')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.dueDateAutoDetect)
+					.onChange(async (value) => {
+						this.plugin.settings.dueDateAutoDetect = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Remove Natural Language Expression')
+				.setDesc('Remove the natural language text after parsing (e.g., remove "due tomorrow" from task)')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.dueDateRemoveExpression)
+					.onChange(async (value) => {
+						this.plugin.settings.dueDateRemoveExpression = value;
 						await this.plugin.saveSettings();
 					}));
 		}

@@ -46,11 +46,23 @@ describe('TaskTagger', () => {
 			expect(maps[0].keywords).toContain('my project');
 		});
 
-		it('should parse update_keywords', () => {
+		it('should parse update_keywords as comma-separated string', () => {
 			const projects: ProjectMetadata[] = [{
 				path: 'test.md',
 				name: 'My Project',
 				update_keywords: 'migration, LLM, testing',
+			}];
+
+			const maps = TaskTagger.buildProjectKeywordMaps(projects);
+
+			expect(maps[0].keywords).toEqual(['my project', 'migration', 'llm', 'testing']);
+		});
+
+		it('should parse update_keywords as array', () => {
+			const projects: ProjectMetadata[] = [{
+				path: 'test.md',
+				name: 'My Project',
+				update_keywords: ['migration', 'LLM', 'testing'],
 			}];
 
 			const maps = TaskTagger.buildProjectKeywordMaps(projects);
@@ -75,6 +87,18 @@ describe('TaskTagger', () => {
 				path: 'test.md',
 				name: 'Test',
 				update_keywords: '',
+			}];
+
+			const maps = TaskTagger.buildProjectKeywordMaps(projects);
+
+			expect(maps[0].keywords).toEqual(['test']);
+		});
+
+		it('should handle empty keywords array', () => {
+			const projects: ProjectMetadata[] = [{
+				path: 'test.md',
+				name: 'Test',
+				update_keywords: [],
 			}];
 
 			const maps = TaskTagger.buildProjectKeywordMaps(projects);

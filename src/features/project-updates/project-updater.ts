@@ -325,13 +325,22 @@ export class ProjectUpdater {
 
 		// Add update guidance fields if present
 		if (project.update_focus) {
-			metadata.push(`Update Focus: ${project.update_focus}`);
+			const focusValue = Array.isArray(project.update_focus)
+				? project.update_focus.join(', ')
+				: project.update_focus;
+			metadata.push(`Update Focus: ${focusValue}`);
 		}
 		if (project.update_keywords) {
-			metadata.push(`Keywords to Watch: ${project.update_keywords}`);
+			const keywordsValue = Array.isArray(project.update_keywords)
+				? project.update_keywords.join(', ')
+				: project.update_keywords;
+			metadata.push(`Keywords to Watch: ${keywordsValue}`);
 		}
 		if (project.update_style) {
-			metadata.push(`Update Style: ${project.update_style}`);
+			const styleValue = Array.isArray(project.update_style)
+				? project.update_style.join(', ')
+				: project.update_style;
+			metadata.push(`Update Style: ${styleValue}`);
 		}
 
 		// Add any other relevant frontmatter fields
@@ -430,11 +439,15 @@ export class ProjectUpdater {
 		const projectName = project.name.toLowerCase();
 		const projectTag = TaskTagger.toKebabCaseTag(project.name);
 
-		// Parse keywords from frontmatter (comma-separated)
+		// Parse keywords from frontmatter (array or comma-separated string)
 		const keywords: string[] = [];
 		if (project.update_keywords) {
-			const keywordStr = String(project.update_keywords);
-			keywords.push(...keywordStr.split(',').map(k => k.trim().toLowerCase()).filter(k => k.length > 0));
+			// Handle both array and comma-separated string formats
+			const keywordList = Array.isArray(project.update_keywords)
+				? project.update_keywords
+				: String(project.update_keywords).split(',');
+
+			keywords.push(...keywordList.map(k => k.trim().toLowerCase()).filter(k => k.length > 0));
 		}
 		console.log(`Daily Organizer: Searching for project name "${projectName}", tag "${projectTag}", and keywords:`, keywords);
 

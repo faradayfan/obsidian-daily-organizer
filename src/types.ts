@@ -23,9 +23,9 @@ export interface ProjectMetadata {
 	goals?: string;
 	status?: string;
 	description?: string;
-	update_focus?: string; // Optional: What to emphasize in updates (e.g., "technical progress, blockers")
-	update_keywords?: string; // Optional: Additional keywords to watch for (comma-separated)
-	update_style?: string; // Optional: Style guide for updates (e.g., "technical, detailed" or "high-level, business-focused")
+	update_focus?: string | string[]; // Optional: What to emphasize in updates (array or comma-separated string)
+	update_keywords?: string | string[]; // Optional: Additional keywords to watch for (array or comma-separated string)
+	update_style?: string | string[]; // Optional: Style guide for updates (array or comma-separated string)
 	[key: string]: unknown;
 }
 

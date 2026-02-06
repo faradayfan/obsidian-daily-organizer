@@ -73,8 +73,12 @@ export class TaskTagger {
 			const keywords: string[] = [project.name.toLowerCase()];
 
 			if (project.update_keywords) {
-				const parsed = String(project.update_keywords)
-					.split(',')
+				// Handle both array and comma-separated string formats
+				const keywordList = Array.isArray(project.update_keywords)
+					? project.update_keywords
+					: String(project.update_keywords).split(',');
+
+				const parsed = keywordList
 					.map(k => k.trim().toLowerCase())
 					.filter(k => k.length > 0);
 				keywords.push(...parsed);

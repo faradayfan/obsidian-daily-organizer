@@ -81,10 +81,19 @@ export default class DailyOrganizerPlugin extends Plugin {
 			},
 		});
 
-		// Update project keywords command
+		// Update current project keywords command
+		this.addCommand({
+			id: 'update-current-project-keywords',
+			name: 'Update keywords for current project (using LLM)',
+			callback: async () => {
+				await this.projectUpdater.updateCurrentProjectKeywords();
+			},
+		});
+
+		// Update all project keywords command
 		this.addCommand({
 			id: 'update-project-keywords',
-			name: 'Update project keywords (using LLM)',
+			name: 'Update keywords for all projects (using LLM)',
 			callback: async () => {
 				await this.projectUpdater.updateAllProjectKeywords();
 			},

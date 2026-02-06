@@ -29,6 +29,40 @@ export class ProjectUpdater {
 		this.settings = settings;
 	}
 
+	async updateCurrentProjectKeywords(): Promise<void> {
+		// Check if LLM is configured
+		if (!this.llmService.isConfigured()) {
+			new Notice('LLM API key not configured. Please add it in settings.');
+			return;
+		}
+
+		// Get the currently active file
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) {
+			new Notice('No active file.');
+			return;
+		}
+
+		// Check if the current file is a project
+		const projects = await this.projectFinder.findProjects();
+		const currentProject = projects.find(p => p.path === activeFile.path);
+
+		if (!currentProject) {
+			new Notice(`Current file is not a project. Projects must have the ${this.settings.projectTag} tag.`);
+			return;
+		}
+
+		new Notice(`Generating keywords for "${currentProject.name}"...`);
+
+		const updated = await this.updateProjectKeywords(currentProject);
+
+		if (updated) {
+			new Notice(`Updated keywords for "${currentProject.name}".`);
+		} else {
+			new Notice(`Failed to update keywords for "${currentProject.name}".`);
+		}
+	}
+
 	async updateAllProjectKeywords(): Promise<void> {
 		// Check if LLM is configured
 		if (!this.llmService.isConfigured()) {

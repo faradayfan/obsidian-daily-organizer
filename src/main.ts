@@ -129,7 +129,17 @@ export default class DailyOrganizerPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on('create', async (file) => {
 				if (file instanceof TFile && this.isDailyNote(file)) {
-					// Small delay to ensure file is fully created and any templates are applied
+					const noteDate = extractDateFromFilename(file.basename);
+					if (!noteDate) return;
+
+					const today = new Date();
+					today.setHours(0, 0, 0, 0);
+
+					// Only process notes created for today
+					if (noteDate.getTime() !== today.getTime()) {
+						return;
+					}
+
 					setTimeout(async () => {
 						console.log('Daily Organizer: New daily note created:', file.basename);
 						console.log('Daily Organizer: projectAutoUpdateEnabled:', this.settings.projectAutoUpdateEnabled);

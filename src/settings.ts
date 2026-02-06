@@ -136,9 +136,14 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				.setName('Claude Model')
 				.setDesc('The Claude model to use')
 				.addDropdown(dropdown => dropdown
+					.addOption('claude-opus-4-6', 'Claude Opus 4.6')
+					.addOption('claude-opus-4-5-20251101', 'Claude Opus 4.5')
+					.addOption('claude-opus-4-1-20250805', 'Claude Opus 4.1')
 					.addOption('claude-opus-4-20250514', 'Claude Opus 4')
+					.addOption('claude-haiku-4-5-20251001', 'Claude Haiku 4.5')
+					.addOption('claude-sonnet-4-5-20250929', 'Claude Sonnet 4.5')
 					.addOption('claude-sonnet-4-20250514', 'Claude Sonnet 4')
-					.addOption('claude-3-5-haiku-20241022', 'Claude 3.5 Haiku')
+					.addOption('claude-3-haiku-20240307', 'Claude Haiku 3')
 					.setValue(this.plugin.settings.claudeModel)
 					.onChange(async (value) => {
 						this.plugin.settings.claudeModel = value;

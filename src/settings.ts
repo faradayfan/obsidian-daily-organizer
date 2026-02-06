@@ -29,10 +29,12 @@ export interface DailyOrganizerSettings {
 	// Task Completion Date Settings
 	completionDateEnabled: boolean;
 	completionDateField: string;
+	completionDateUseShorthand: boolean;
 
 	// Task Created Date Settings
 	createdDateEnabled: boolean;
 	createdDateField: string;
+	createdDateUseShorthand: boolean;
 
 	// Task Tagging Settings
 	taskTaggingEnabled: boolean;
@@ -64,10 +66,12 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 	// Task Completion Date Settings
 	completionDateEnabled: false,
 	completionDateField: 'completion',
+	completionDateUseShorthand: false,
 
 	// Task Created Date Settings
 	createdDateEnabled: false,
 	createdDateField: 'created',
+	createdDateUseShorthand: false,
 
 	// Task Tagging Settings
 	taskTaggingEnabled: true,
@@ -272,6 +276,16 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 						this.plugin.settings.createdDateField = value || 'created';
 						await this.plugin.saveSettings();
 					}));
+
+			new Setting(containerEl)
+				.setName('Use Shorthand Format')
+				.setDesc('Use shorthand emoji format (➕YYYY-MM-DD) instead of inline field format')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.createdDateUseShorthand)
+					.onChange(async (value) => {
+						this.plugin.settings.createdDateUseShorthand = value;
+						await this.plugin.saveSettings();
+					}));
 		}
 
 		new Setting(containerEl)
@@ -294,6 +308,16 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.completionDateField)
 					.onChange(async (value) => {
 						this.plugin.settings.completionDateField = value || 'completion';
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Use Shorthand Format')
+				.setDesc('Use shorthand emoji format (✅YYYY-MM-DD) instead of inline field format')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.completionDateUseShorthand)
+					.onChange(async (value) => {
+						this.plugin.settings.completionDateUseShorthand = value;
 						await this.plugin.saveSettings();
 					}));
 		}

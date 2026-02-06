@@ -60,7 +60,8 @@ export class TaskMetadataHandler {
 			if (this.settings.createdDateEnabled && isNewTask) {
 				const fieldName = this.settings.createdDateField || 'created';
 				const dateStr = formatDate(new Date(), 'YYYY-MM-DD');
-				const newLine = addCreatedField(lineContent, fieldName, dateStr);
+				const useShorthand = this.settings.createdDateUseShorthand;
+				const newLine = addCreatedField(lineContent, fieldName, dateStr, useShorthand);
 				if (newLine !== null) {
 					const cursor = editor.getCursor().ch;
 					editor.setLine(i, newLine);
@@ -86,7 +87,8 @@ export class TaskMetadataHandler {
 					if (isCompleted) {
 						const fieldName = this.settings.completionDateField || 'completion';
 						const dateStr = formatDate(new Date(), 'YYYY-MM-DD');
-						const newLine = addCompletionField(lineContent, fieldName, dateStr);
+						const useShorthand = this.settings.completionDateUseShorthand;
+						const newLine = addCompletionField(lineContent, fieldName, dateStr, useShorthand);
 						if (newLine !== null) {
 							editor.setLine(i, newLine);
 						}

@@ -1,22 +1,20 @@
-import { App, Editor, MarkdownView } from 'obsidian';
+import { Editor, MarkdownView } from 'obsidian';
 import { DailyOrganizerSettings } from '../../settings';
 import { formatDate } from '../../utils/date-utils';
+import { TASK_REGEX } from './completion-date';
+import { addCompletionField, removeCompletionField } from './completion-date';
+import { addCreatedField } from './created-date';
 
 interface LineState {
 	isTask: boolean;
 	isCompleted: boolean;
 }
 
-export class CompletionDateHandler {
-	private app: App;
+export class TaskMetadataHandler {
 	private settings: DailyOrganizerSettings;
 	private lastLineStates: Map<string, Map<number, LineState>> = new Map();
 
-	// Regex to match task checkboxes
-	private readonly TASK_REGEX = /^(\s*- \[)([ xX])(\] .*)$/;
-
-	constructor(app: App, settings: DailyOrganizerSettings) {
-		this.app = app;
+	constructor(settings: DailyOrganizerSettings) {
 		this.settings = settings;
 	}
 
@@ -45,7 +43,7 @@ export class CompletionDateHandler {
 
 		for (let i = 0; i < lineCount; i++) {
 			let lineContent = editor.getLine(i);
-			const match = lineContent.match(this.TASK_REGEX);
+			const match = lineContent.match(TASK_REGEX);
 			const isTask = match !== null;
 			const isCompleted = match ? match[2]?.toLowerCase() === 'x' : false;
 
@@ -60,9 +58,17 @@ export class CompletionDateHandler {
 			//   so an untracked line during editing is genuinely new.
 			const isNewTask = isTask && (previousState === undefined || !previousState.isTask);
 			if (this.settings.createdDateEnabled && isNewTask) {
-				lineContent = this.addCreatedDate(editor, i, lineContent);
+				const fieldName = this.settings.createdDateField || 'created';
+				const dateStr = formatDate(new Date(), 'YYYY-MM-DD');
+				const newLine = addCreatedField(lineContent, fieldName, dateStr);
+				if (newLine !== null) {
+					const cursor = editor.getCursor().ch;
+					editor.setLine(i, newLine);
+					editor.setCursor({ line: i, ch: cursor });
+					lineContent = newLine;
+				}
 				// Re-read the line state after modification
-				const updatedMatch = lineContent.match(this.TASK_REGEX);
+				const updatedMatch = lineContent.match(TASK_REGEX);
 				newStates.set(i, {
 					isTask: updatedMatch !== null,
 					isCompleted: updatedMatch ? updatedMatch[2]?.toLowerCase() === 'x' : false,
@@ -78,13 +84,22 @@ export class CompletionDateHandler {
 			if (this.settings.completionDateEnabled && previousState.isTask && isTask) {
 				if (previousState.isCompleted !== isCompleted) {
 					if (isCompleted) {
-						this.addCompletionDate(editor, i, lineContent);
+						const fieldName = this.settings.completionDateField || 'completion';
+						const dateStr = formatDate(new Date(), 'YYYY-MM-DD');
+						const newLine = addCompletionField(lineContent, fieldName, dateStr);
+						if (newLine !== null) {
+							editor.setLine(i, newLine);
+						}
 					} else {
-						this.removeCompletionDate(editor, i, lineContent);
+						const fieldName = this.settings.completionDateField || 'completion';
+						const newLine = removeCompletionField(lineContent, fieldName);
+						if (newLine !== null) {
+							editor.setLine(i, newLine);
+						}
 					}
 					// Re-read line after modification to update state
 					const updatedLine = editor.getLine(i);
-					const updatedMatch = updatedLine.match(this.TASK_REGEX);
+					const updatedMatch = updatedLine.match(TASK_REGEX);
 					newStates.set(i, {
 						isTask: updatedMatch !== null,
 						isCompleted: updatedMatch ? updatedMatch[2]?.toLowerCase() === 'x' : false,
@@ -94,68 +109,6 @@ export class CompletionDateHandler {
 		}
 
 		this.lastLineStates.set(filePath, newStates);
-	}
-
-	/**
-	 * Add created date to a task line
-	 */
-	private addCreatedDate(editor: Editor, lineNumber: number, lineContent: string): string {
-		const fieldName = this.settings.createdDateField || 'created';
-		const dateStr = formatDate(new Date(), 'YYYY-MM-DD');
-		const createdField = `[${fieldName}:: ${dateStr}]`;
-
-		// Check if created date already exists
-		const existingFieldRegex = new RegExp(`\\[${this.escapeRegex(fieldName)}::\\s*\\d{4}-\\d{2}-\\d{2}\\]`);
-		if (existingFieldRegex.test(lineContent)) {
-			return lineContent; // Already has a created date
-		}
-
-		let cursor = editor.getCursor().ch;
-		const newLine = `${lineContent} ${createdField}`;
-		editor.setLine(lineNumber, newLine);
-		editor.setCursor({ line: lineNumber, ch: cursor }); // Keep cursor position
-		return newLine;
-	}
-
-	/**
-	 * Add completion date to a task line
-	 */
-	private addCompletionDate(editor: Editor, lineNumber: number, lineContent: string): void {
-		const fieldName = this.settings.completionDateField || 'completion';
-		const dateStr = formatDate(new Date(), 'YYYY-MM-DD');
-		const completionField = `[${fieldName}:: ${dateStr}]`;
-
-		// Check if completion date already exists
-		const existingFieldRegex = new RegExp(`\\[${this.escapeRegex(fieldName)}::\\s*\\d{4}-\\d{2}-\\d{2}\\]`);
-		if (existingFieldRegex.test(lineContent)) {
-			return; // Already has a completion date
-		}
-
-		// Add completion date at the end of the line
-		const newLine = `${lineContent} ${completionField}`;
-		editor.setLine(lineNumber, newLine);
-	}
-
-	/**
-	 * Remove completion date from a task line
-	 */
-	private removeCompletionDate(editor: Editor, lineNumber: number, lineContent: string): void {
-		const fieldName = this.settings.completionDateField || 'completion';
-
-		// Remove the completion field (with optional surrounding spaces)
-		const fieldRegex = new RegExp(`\\s*\\[${this.escapeRegex(fieldName)}::\\s*\\d{4}-\\d{2}-\\d{2}\\]`, 'g');
-		const newLine = lineContent.replace(fieldRegex, '');
-
-		if (newLine !== lineContent) {
-			editor.setLine(lineNumber, newLine);
-		}
-	}
-
-	/**
-	 * Escape special regex characters in a string
-	 */
-	private escapeRegex(str: string): string {
-		return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	}
 
 	/**
@@ -184,7 +137,7 @@ export class CompletionDateHandler {
 
 		for (let i = 0; i < lineCount; i++) {
 			const line = editor.getLine(i);
-			const match = line.match(this.TASK_REGEX);
+			const match = line.match(TASK_REGEX);
 			const isTask = match !== null;
 			const isCompleted = match ? match[2]?.toLowerCase() === 'x' : false;
 			states.set(i, { isTask, isCompleted });

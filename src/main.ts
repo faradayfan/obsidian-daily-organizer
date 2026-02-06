@@ -8,7 +8,7 @@ import { LLMService } from './services/llm/llm-service';
 import { TodoMigrator } from './features/todo-migration/todo-migrator';
 import { ProjectFinder } from './features/project-updates/project-finder';
 import { ProjectUpdater } from './features/project-updates/project-updater';
-import { CompletionDateHandler } from './features/completion-date/completion-date-handler';
+import { TaskMetadataHandler } from './features/task-metadata/task-metadata-handler';
 import { TaskTagger } from './features/task-tagging/task-tagger';
 import { extractDateFromFilename } from './utils/date-utils';
 
@@ -22,7 +22,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 	private todoMigrator: TodoMigrator;
 	private projectFinder: ProjectFinder;
 	private projectUpdater: ProjectUpdater;
-	private completionDateHandler: CompletionDateHandler;
+	private taskMetadataHandler: TaskMetadataHandler;
 	private taskTagger: TaskTagger;
 
 	async onload() {
@@ -55,8 +55,8 @@ export default class DailyOrganizerPlugin extends Plugin {
 			this.projectFinder
 		);
 
-		// Initialize completion date handler
-		this.completionDateHandler = new CompletionDateHandler(this.app, this.settings);
+		// Initialize task metadata handler
+		this.taskMetadataHandler = new TaskMetadataHandler(this.settings);
 
 		// Initialize task tagger
 		this.taskTagger = new TaskTagger(this.app, this.settings, this.projectFinder);
@@ -131,21 +131,21 @@ export default class DailyOrganizerPlugin extends Plugin {
 			})
 		);
 
-		// Register for editor changes to handle completion date tracking
+		// Register for editor changes to handle task metadata tracking
 		this.registerEvent(
 			this.app.workspace.on('editor-change', (editor, view) => {
 				if (view instanceof MarkdownView) {
-					this.completionDateHandler.handleEditorChange(editor, view);
+					this.taskMetadataHandler.handleEditorChange(editor, view);
 				}
 			})
 		);
 
-		// Initialize completion date state when a file is opened
+		// Initialize task metadata state when a file is opened
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', () => {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.editor) {
-					this.completionDateHandler.initializeEditorState(view.editor, view);
+					this.taskMetadataHandler.initializeEditorState(view.editor, view);
 				}
 			})
 		);
@@ -236,8 +236,8 @@ export default class DailyOrganizerPlugin extends Plugin {
 		if (this.projectUpdater) {
 			this.projectUpdater.updateSettings(this.settings);
 		}
-		if (this.completionDateHandler) {
-			this.completionDateHandler.updateSettings(this.settings);
+		if (this.taskMetadataHandler) {
+			this.taskMetadataHandler.updateSettings(this.settings);
 		}
 		if (this.taskTagger) {
 			this.taskTagger.updateSettings(this.settings);

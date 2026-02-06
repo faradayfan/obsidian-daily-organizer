@@ -119,16 +119,25 @@ export class ProjectUpdater {
 		}
 
 		// Clean up the response - ensure it's just keywords
-		const keywords = response.content.trim();
-		console.log(`Daily Organizer: Generated keywords for ${project.name}: ${keywords}`);
+		const keywordsString = response.content.trim();
+		console.log(`Daily Organizer: Generated keywords for ${project.name}: ${keywordsString}`);
+
+		// Convert to array if setting is enabled
+		let keywordsValue: string | string[];
+		if (this.settings.generateKeywordsAsArray) {
+			// Split by comma and trim each keyword
+			keywordsValue = keywordsString.split(',').map(k => k.trim()).filter(k => k.length > 0);
+		} else {
+			keywordsValue = keywordsString;
+		}
 
 		// Update the project frontmatter with the new keywords
-		await this.updateProjectFrontmatter(project, 'update_keywords', keywords);
+		await this.updateProjectFrontmatter(project, 'update_keywords', keywordsValue);
 
 		return true;
 	}
 
-	private async updateProjectFrontmatter(project: ProjectMetadata, key: string, value: string): Promise<void> {
+	private async updateProjectFrontmatter(project: ProjectMetadata, key: string, value: string | string[]): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(project.path);
 		if (!(file instanceof TFile)) {
 			return;
@@ -146,16 +155,30 @@ export class ProjectUpdater {
 		const frontmatter = frontmatterMatch[1];
 		const afterFrontmatter = content.slice(frontmatterMatch[0].length);
 
-		// Check if key already exists in frontmatter
-		const keyRegex = new RegExp(`^${key}:.*$`, 'm');
-		let newFrontmatter: string;
+		// Format value based on type
+		let formattedValue: string;
+		if (Array.isArray(value)) {
+			// Format as YAML array with each item on a new line
+			formattedValue = '\n' + value.map(item => `  - ${item}`).join('\n');
+		} else {
+			formattedValue = ` ${value}`;
+		}
 
-		if (keyRegex.test(frontmatter ?? '')) {
-			// Replace existing key
-			newFrontmatter = (frontmatter ?? '').replace(keyRegex, `${key}: ${value}`);
+		// Check if key already exists in frontmatter
+		// For array values, we need to match the key and everything until the next top-level key or end
+		let newFrontmatter: string;
+		const keyRegex = new RegExp(`^${key}:.*$`, 'm');
+		const keyArrayRegex = new RegExp(`^${key}:\\n((?:  - .*\\n?)*)`, 'm');
+
+		if (keyArrayRegex.test(frontmatter ?? '')) {
+			// Replace existing array-style key (captures multi-line array)
+			newFrontmatter = (frontmatter ?? '').replace(keyArrayRegex, `${key}:${formattedValue}`);
+		} else if (keyRegex.test(frontmatter ?? '')) {
+			// Replace existing simple key
+			newFrontmatter = (frontmatter ?? '').replace(keyRegex, `${key}:${formattedValue}`);
 		} else {
 			// Add new key at the end of frontmatter
-			newFrontmatter = `${frontmatter}\n${key}: ${value}`;
+			newFrontmatter = `${frontmatter}\n${key}:${formattedValue}`;
 		}
 
 		const newContent = `---\n${newFrontmatter}\n---${afterFrontmatter}`;

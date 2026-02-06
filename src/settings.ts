@@ -25,6 +25,7 @@ export interface DailyOrganizerSettings {
 	projectAutoUpdateEnabled: boolean;
 	projectUpdatePosition: InsertPosition;
 	autoUpdateProjectKeywords: boolean;
+	generateKeywordsAsArray: boolean;
 
 	// Task Completion Date Settings
 	completionDateEnabled: boolean;
@@ -69,6 +70,7 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 	projectAutoUpdateEnabled: false,
 	projectUpdatePosition: 'top',
 	autoUpdateProjectKeywords: false,
+	generateKeywordsAsArray: false,
 
 	// Task Completion Date Settings
 	completionDateEnabled: false,
@@ -267,6 +269,16 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.autoUpdateProjectKeywords)
 				.onChange(async (value) => {
 					this.plugin.settings.autoUpdateProjectKeywords = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Generate Keywords as Array')
+			.setDesc('Save generated keywords as YAML array instead of comma-separated string')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.generateKeywordsAsArray)
+				.onChange(async (value) => {
+					this.plugin.settings.generateKeywordsAsArray = value;
 					await this.plugin.saveSettings();
 				}));
 

@@ -4,7 +4,55 @@ An Obsidian plugin that automatically manages your daily notes and project pages
 
 ## Features
 
-### 1. Hierarchical Todo Migration
+### 1. Task Metadata Auto-Detection
+
+Automatically extracts and adds metadata to tasks from natural language expressions.
+
+**Supported Metadata:**
+
+- **Created Date** (`➕` or `[created:: YYYY-MM-DD]`) - Added when task is created
+- **Due Date** (`📅` or `[due:: YYYY-MM-DD]`) - Parsed from expressions like "by tomorrow", "end of day", "by lunch"
+- **Priority** (`⏫🔼🔽⏬` or `[priority:: high]`) - Parsed from "high priority", "urgent", "low priority"
+- **Completion Date** (`✅` or `[completion:: YYYY-MM-DD]`) - Added automatically when checking a task
+
+**Natural Language Parsing:**
+
+- **Time expressions**: "by lunch", "end of day", "eod", "noon", "midnight", "morning", "afternoon", "evening", "tonight"
+- **Relative dates**: "tomorrow", "today", "next Friday", "in 3 days", "in 2 weeks"
+- **Specific dates**: "Jan 15", "January 15th", "2026-02-15"
+- **Priority phrases**: "high priority", "urgent", "low priority", "lowest priority"
+
+**Example:**
+
+```markdown
+- [ ] high priority finish report by tomorrow
+
+# Becomes (with auto-detection):
+- [ ] finish report ➕2026-02-06 📅2026-02-07 ⏫
+```
+
+### 2. Project Tag Auto-Tagging
+
+Automatically tags tasks with relevant project tags based on keywords from project pages.
+
+**Key Behaviors:**
+
+- Analyzes task text and matches against project keywords
+- Tags tasks before metadata processing for better context
+- Supports both manual command and automatic before-migration
+- Excludes sections marked with `#ignore-project-tagging`
+- Tags are inserted before metadata fields
+
+**Example:**
+
+```markdown
+- [ ] Fix authentication bug in API
+
+# Becomes (if "authentication" and "api" are keywords for #web-api project):
+- [ ] Fix authentication bug in API #web-api
+```
+
+### 3. Hierarchical Todo Migration
 
 Automatically migrates uncompleted todos from the previous daily note to the current one, preserving the entire nested structure.
 
@@ -38,7 +86,7 @@ Automatically migrates uncompleted todos from the previous daily note to the cur
 
 The entire "Write documentation" subtree moves because "Write examples" is incomplete, even though "Draft outline" is complete.
 
-### 2. AI-Powered Project Updates
+### 4. AI-Powered Project Updates
 
 Uses LLM (Claude or OpenAI) to analyze your daily notes and intelligently update project pages with relevant progress.
 
@@ -50,7 +98,7 @@ Uses LLM (Claude or OpenAI) to analyze your daily notes and intelligently update
 - Pre-filters content using keywords (manual or LLM-generated)
 - Inserts updates with automatic date headers
 
-### 3. LLM-Generated Project Keywords
+### 5. LLM-Generated Project Keywords
 
 Automatically generates relevant keywords for each project by analyzing project content (Goals, Status, Overview sections).
 
@@ -107,10 +155,40 @@ Configure in Settings → Daily Organizer → LLM Configuration
 
 ### Todo Migration Settings
 
-| Setting                   | Description                                                | Default  |
-| ------------------------- | ---------------------------------------------------------- | -------- |
-| **Enable Auto Migration** | Automatically migrate todos when creating a new daily note | `true`   |
-| **Todo Section Tag**      | Tag that identifies the todos section                      | `#todos` |
+| Setting                          | Description                                                                | Default  |
+| -------------------------------- | -------------------------------------------------------------------------- | -------- |
+| **Enable Auto Migration**        | Automatically migrate todos when creating a new daily note                 | `true`   |
+| **Todo Section Tag**             | Tag that identifies the todos section                                      | `#todos` |
+| **Auto-tag Tasks Before Migration** | Automatically add project tags to tasks before migration                   | `false`  |
+| **Auto-process Task Metadata**   | Automatically add metadata (created/due/priority) to tasks before migration | `false`  |
+
+### Task Metadata Settings
+
+| Setting                               | Description                                                | Default      |
+| ------------------------------------- | ---------------------------------------------------------- | ------------ |
+| **Enable Created Date**               | Add created date when tasks are processed                  | `false`      |
+| **Created Date Field**                | Field name for created date                                | `created`    |
+| **Created Date Use Shorthand**        | Use emoji format (➕) instead of inline field              | `false`      |
+| **Enable Completion Date**            | Add/remove completion date when checking/unchecking tasks  | `false`      |
+| **Completion Date Field**             | Field name for completion date                             | `completion` |
+| **Completion Date Use Shorthand**     | Use emoji format (✅) instead of inline field              | `false`      |
+| **Enable Due Date**                   | Add due date metadata to tasks                             | `false`      |
+| **Due Date Field**                    | Field name for due date                                    | `due`        |
+| **Due Date Use Shorthand**            | Use emoji format (📅) instead of inline field              | `false`      |
+| **Auto-detect Due Dates**             | Parse due dates from natural language                      | `true`       |
+| **Remove Natural Language Expression** | Remove the natural language text after parsing            | `true`       |
+| **Enable Priority**                   | Add priority metadata to tasks                             | `true`       |
+| **Priority Field**                    | Field name for priority                                    | `priority`   |
+| **Priority Use Shorthand**            | Use emoji format (⏫🔼🔽⏬) instead of inline field          | `true`       |
+| **Auto-detect Priority**              | Parse priority from natural language                       | `true`       |
+| **Remove Natural Language Expression** | Remove the natural language text after parsing            | `true`       |
+
+### Task Tagging Settings
+
+| Setting                          | Description                                                | Default                      |
+| -------------------------------- | ---------------------------------------------------------- | ---------------------------- |
+| **Enable Task Tagging**          | Allow tagging tasks with project-based tags                | `true`                       |
+| **Ignore Project Tagging Tag**   | Section headers with this tag will be excluded             | `#ignore-project-tagging`    |
 
 ### Project Updates Settings
 
@@ -372,20 +450,103 @@ update_keywords: api, migration, database, authentication, endpoints, rest, depl
 ---
 ```
 
+### Add Metadata to All Tasks in Active File
+
+**Command ID:** `process-task-metadata`
+
+Processes all tasks in the active file to add created date, due date, and priority metadata based on natural language.
+
+**Usage:**
+
+1. Open command palette (Cmd/Ctrl + P)
+2. Type "Add metadata to all tasks"
+3. Press Enter
+
+**Behavior:**
+
+1. Scans active file for all task lines (`- [ ]` and `- [x]`)
+2. For each task:
+    - Adds created date (if enabled and not present)
+    - Parses and adds due date from natural language (if enabled and detected)
+    - Parses and adds priority from natural language (if enabled and detected)
+    - Optionally removes natural language expressions after parsing
+3. Shows a notice with count of processed tasks
+
+**Example:**
+
+```markdown
+# Before:
+- [ ] high priority finish report by tomorrow
+
+# After:
+- [ ] finish report ➕2026-02-06 📅2026-02-07 ⏫
+```
+
+### Tag Tasks and Sections with Project Keywords
+
+**Command ID:** `tag-tasks`
+
+Tags tasks and section headers in the active file with relevant project tags based on keyword matching.
+
+**Usage:**
+
+1. Open command palette (Cmd/Ctrl + P)
+2. Type "Tag tasks"
+3. Press Enter
+
+**Behavior:**
+
+1. Finds all project pages and builds keyword maps
+2. Scans active file for:
+    - Root-level task items and their children
+    - Section headers and their content
+3. Matches text against project keywords
+4. Adds project tags (e.g., `#web-api`) to matching items
+5. Tags are inserted before metadata fields
+6. Skips sections marked with `#ignore-project-tagging`
+7. Shows a notice with count of tagged items
+
+**Example:**
+
+```markdown
+# Before:
+- [ ] Fix authentication bug in API server
+
+# After (if "authentication" and "api" are keywords for Web API project):
+- [ ] Fix authentication bug in API server #web-api
+```
+
 ## Automatic Features
 
 ### Auto-Migration on New Daily Note
 
-When **Enable Auto Migration** is turned on, the plugin automatically migrates todos when you create a new daily note.
+When **Enable Auto Migration** is turned on, the plugin automatically processes the previous daily note and migrates todos when you create a new daily note.
 
-**Trigger:** Creating a new file that matches `YYYY-MM-DD` pattern in the configured daily notes folder
+**Trigger:** Creating a new file that matches `YYYY-MM-DD` pattern (for today only) in the configured daily notes folder
 
-**Process:**
+**Process (executed in order):**
 
 1. Wait 500ms for file creation and template application to complete
 2. Find the most recent previous daily note
-3. Parse and migrate uncompleted todos with their nested structures
-4. Insert into the new daily note
+3. **Auto-tag tasks** (if enabled): Add project tags to tasks based on keywords
+4. **Auto-process metadata** (if enabled): Add created/due/priority metadata to all tasks
+5. **Project updates** (if enabled): Analyze previous note and update project pages
+6. **Migrate todos**: Move uncompleted tasks to today's note
+
+**Note:** Steps 3-5 all operate on the PREVIOUS day's note before migration, ensuring tasks have complete metadata and context.
+
+### Real-Time Completion Date Tracking
+
+When **Enable Completion Date** is turned on, the plugin automatically tracks task completion in real-time.
+
+**Trigger:** Checking or unchecking a task checkbox
+
+**Behavior:**
+
+- **Check task** (`[ ]` → `[x]`): Adds completion date immediately
+- **Uncheck task** (`[x]` → `[ ]`): Removes completion date immediately
+- Works on any markdown file, not just daily notes
+- Cursor position is preserved during metadata updates
 
 ### Auto-Update Projects on New Daily Note
 

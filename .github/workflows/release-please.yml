@@ -22,11 +22,11 @@ jobs:
             # Build and upload assets only if a release was created
             - name: Checkout code
               if: ${{ steps.release.outputs.release_created }}
-              uses: actions/checkout@v5
+              uses: actions/checkout@v6
 
             - name: Setup Node.js
               if: ${{ steps.release.outputs.release_created }}
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v6
               with:
                   node-version: "18"
 
@@ -48,33 +48,11 @@ jobs:
 
             - name: Upload main.js
               if: ${{ steps.release.outputs.release_created }}
-              uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  upload_url: ${{ steps.release.outputs.upload_url }}
-                  asset_path: ./main.js
-                  asset_name: main.js
-                  asset_content_type: application/javascript
+              uses: softprops/action-gh-release@v2
+			  with:
+				tag_name: ${{ steps.release.outputs.tag_name }}
+				files: |
+				  main.js
+				  manifest.json
+				  styles.css
 
-            - name: Upload manifest.json
-              if: ${{ steps.release.outputs.release_created }}
-              uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  upload_url: ${{ steps.release.outputs.upload_url }}
-                  asset_path: ./manifest.json
-                  asset_name: manifest.json
-                  asset_content_type: application/json
-
-            - name: Upload styles.css
-              if: ${{ steps.release.outputs.release_created }}
-              uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  upload_url: ${{ steps.release.outputs.upload_url }}
-                  asset_path: ./styles.css
-                  asset_name: styles.css
-                  asset_content_type: text/css

@@ -1,58 +1,57 @@
 name: Release Please
 
 on:
-    push:
-        branches:
-            - main
-            - master
+  push:
+    branches:
+      - main
+      - master
 
 permissions:
-    contents: write
-    pull-requests: write
+  contents: write
+  pull-requests: write
 
 jobs:
-    release-please:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: googleapis/release-please-action@v4
-              id: release
-              with:
-                  release-type: node
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: node
 
-            # Build and upload assets only if a release was created
-            - name: Checkout code
-              if: ${{ steps.release.outputs.release_created }}
-              uses: actions/checkout@v6
+      # Build and upload assets only if a release was created
+      - name: Checkout code
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@v6
 
-            - name: Setup Node.js
-              if: ${{ steps.release.outputs.release_created }}
-              uses: actions/setup-node@v6
-              with:
-                  node-version: "18"
+      - name: Setup Node.js
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: "18"
 
-            - name: Install dependencies
-              if: ${{ steps.release.outputs.release_created }}
-              run: npm ci
+      - name: Install dependencies
+        if: ${{ steps.release.outputs.release_created }}
+        run: npm ci
 
-            - name: Run linter
-              if: ${{ steps.release.outputs.release_created }}
-              run: npm run lint
+      - name: Run linter
+        if: ${{ steps.release.outputs.release_created }}
+        run: npm run lint
 
-            - name: Run tests
-              if: ${{ steps.release.outputs.release_created }}
-              run: npm test
+      - name: Run tests
+        if: ${{ steps.release.outputs.release_created }}
+        run: npm test
 
-            - name: Build plugin
-              if: ${{ steps.release.outputs.release_created }}
-              run: npm run build
+      - name: Build plugin
+        if: ${{ steps.release.outputs.release_created }}
+        run: npm run build
 
-            - name: Upload main.js
-              if: ${{ steps.release.outputs.release_created }}
-              uses: softprops/action-gh-release@v2
-			  with:
-				tag_name: ${{ steps.release.outputs.tag_name }}
-				files: |
-				  main.js
-				  manifest.json
-				  styles.css
-
+      - name: Upload main.js
+        if: ${{ steps.release.outputs.release_created }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag_name }}
+          files: |
+            main.js
+            manifest.json
+            styles.css

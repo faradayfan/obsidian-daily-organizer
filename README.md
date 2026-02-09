@@ -164,31 +164,35 @@ Configure in Settings → Daily Organizer → LLM Configuration
 
 ### Task Metadata Settings
 
-| Setting                               | Description                                                | Default      |
-| ------------------------------------- | ---------------------------------------------------------- | ------------ |
-| **Enable Created Date**               | Add created date when tasks are processed                  | `false`      |
-| **Created Date Field**                | Field name for created date                                | `created`    |
-| **Created Date Use Shorthand**        | Use emoji format (➕) instead of inline field              | `false`      |
-| **Enable Completion Date**            | Add/remove completion date when checking/unchecking tasks  | `false`      |
-| **Completion Date Field**             | Field name for completion date                             | `completion` |
-| **Completion Date Use Shorthand**     | Use emoji format (✅) instead of inline field              | `false`      |
-| **Enable Due Date**                   | Add due date metadata to tasks                             | `false`      |
-| **Due Date Field**                    | Field name for due date                                    | `due`        |
-| **Due Date Use Shorthand**            | Use emoji format (📅) instead of inline field              | `false`      |
-| **Auto-detect Due Dates**             | Parse due dates from natural language                      | `true`       |
-| **Remove Natural Language Expression** | Remove the natural language text after parsing            | `true`       |
-| **Enable Priority**                   | Add priority metadata to tasks                             | `true`       |
-| **Priority Field**                    | Field name for priority                                    | `priority`   |
-| **Priority Use Shorthand**            | Use emoji format (⏫🔼🔽⏬) instead of inline field          | `true`       |
-| **Auto-detect Priority**              | Parse priority from natural language                       | `true`       |
-| **Remove Natural Language Expression** | Remove the natural language text after parsing            | `true`       |
+| Setting                                | Description                                                   | Default      |
+| -------------------------------------- | ------------------------------------------------------------- | ------------ |
+| **Auto-process on Edit**               | Automatically process task metadata after you stop editing    | `false`      |
+| **Metadata Processing Debounce (ms)**  | Wait time after last edit before auto-processing (5 seconds)  | `5000`       |
+| **Enable Created Date**                | Add created date when tasks are processed                     | `false`      |
+| **Created Date Field**                 | Field name for created date                                   | `created`    |
+| **Created Date Use Shorthand**         | Use emoji format (➕) instead of inline field                 | `false`      |
+| **Enable Completion Date**             | Add/remove completion date when checking/unchecking tasks     | `false`      |
+| **Completion Date Field**              | Field name for completion date                                | `completion` |
+| **Completion Date Use Shorthand**      | Use emoji format (✅) instead of inline field                 | `false`      |
+| **Enable Due Date**                    | Add due date metadata to tasks                                | `false`      |
+| **Due Date Field**                     | Field name for due date                                       | `due`        |
+| **Due Date Use Shorthand**             | Use emoji format (📅) instead of inline field                 | `false`      |
+| **Auto-detect Due Dates**              | Parse due dates from natural language                         | `true`       |
+| **Remove Natural Language Expression** | Remove the natural language text after parsing                | `true`       |
+| **Enable Priority**                    | Add priority metadata to tasks                                | `true`       |
+| **Priority Field**                     | Field name for priority                                       | `priority`   |
+| **Priority Use Shorthand**             | Use emoji format (⏫🔼🔽⏬) instead of inline field             | `true`       |
+| **Auto-detect Priority**               | Parse priority from natural language                          | `true`       |
+| **Remove Natural Language Expression** | Remove the natural language text after parsing                | `true`       |
 
 ### Task Tagging Settings
 
-| Setting                          | Description                                                | Default                      |
-| -------------------------------- | ---------------------------------------------------------- | ---------------------------- |
-| **Enable Task Tagging**          | Allow tagging tasks with project-based tags                | `true`                       |
-| **Ignore Project Tagging Tag**   | Section headers with this tag will be excluded             | `#ignore-project-tagging`    |
+| Setting                          | Description                                                   | Default                      |
+| -------------------------------- | ------------------------------------------------------------- | ---------------------------- |
+| **Enable Task Tagging**          | Allow tagging tasks with project-based tags                   | `true`                       |
+| **Auto-tag Tasks on Edit**       | Automatically tag tasks after you stop editing                | `false`                      |
+| **Task Tagging Debounce (ms)**   | Wait time after last edit before auto-tagging (5 seconds)     | `5000`                       |
+| **Ignore Project Tagging Tag**   | Section headers with this tag will be excluded                | `#ignore-project-tagging`    |
 
 ### Project Updates Settings
 
@@ -547,6 +551,28 @@ When **Enable Completion Date** is turned on, the plugin automatically tracks ta
 - **Uncheck task** (`[x]` → `[ ]`): Removes completion date immediately
 - Works on any markdown file, not just daily notes
 - Cursor position is preserved during metadata updates
+
+### Debounced Auto-Processing on Edit
+
+When **Auto-process on Edit** or **Auto-tag Tasks on Edit** are enabled, the plugin automatically processes tasks after you stop editing.
+
+**Trigger:** Any edit to the file
+
+**Behavior:**
+
+- Each keystroke resets the debounce timer (default: 5 seconds)
+- When you stop typing for the configured duration, processing runs automatically
+- **Task Metadata Processing**: Adds created dates, parses due dates and priorities
+- **Task Tagging**: Adds project tags based on keyword matching
+- Shows a notification when processing completes (e.g., "Auto-processed 3 task(s)")
+- Completion dates are still added immediately (not debounced) for better UX
+
+**Note:** This is separate from "before migration" auto-processing. You can enable:
+
+- Debounced processing while editing (this feature)
+- Before-migration processing (runs once when creating a new daily note)
+- Both together
+- Neither (manual processing only)
 
 ### Auto-Update Projects on New Daily Note
 

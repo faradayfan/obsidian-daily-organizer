@@ -25,6 +25,10 @@ export default class DailyOrganizerPlugin extends Plugin {
 	private taskMetadataHandler: TaskMetadataHandler;
 	private taskTagger: TaskTagger;
 
+	// Debounce timers for auto-processing
+	private metadataDebounceTimer: NodeJS.Timeout | null = null;
+	private taggingDebounceTimer: NodeJS.Timeout | null = null;
+
 	async onload() {
 		await this.loadSettings();
 		this.initializeServices();
@@ -36,6 +40,13 @@ export default class DailyOrganizerPlugin extends Plugin {
 	}
 
 	onunload() {
+		// Clear any pending debounce timers
+		if (this.metadataDebounceTimer) {
+			clearTimeout(this.metadataDebounceTimer);
+		}
+		if (this.taggingDebounceTimer) {
+			clearTimeout(this.taggingDebounceTimer);
+		}
 		console.log('Daily Organizer plugin unloaded');
 	}
 
@@ -195,11 +206,20 @@ export default class DailyOrganizerPlugin extends Plugin {
 			})
 		);
 
-		// Register for editor changes to handle task metadata tracking
+		// Register for editor changes to handle task metadata tracking and auto-processing
 		this.registerEvent(
 			this.app.workspace.on('editor-change', (editor, view) => {
 				if (view instanceof MarkdownView) {
+					// Always track changes for immediate metadata (like completion dates)
 					this.taskMetadataHandler.handleEditorChange(editor, view);
+
+					// Debounced auto-processing of all tasks (if enabled)
+					this.debouncedMetadataProcessing(editor, view);
+
+					// Debounced auto-tagging (if enabled)
+					if (view.file) {
+						this.debouncedTaskTagging(view.file);
+					}
 				}
 			})
 		);
@@ -251,6 +271,54 @@ export default class DailyOrganizerPlugin extends Plugin {
 		// Return the most recent one
 		const mostRecent = previousNotes[0];
 		return mostRecent?.file ?? null;
+	}
+
+	/**
+	 * Debounced task metadata processing - waits for edits to stop before processing
+	 */
+	private debouncedMetadataProcessing(editor: any, view: MarkdownView): void {
+		// Only proceed if auto-processing on edit is enabled
+		if (!this.settings.autoProcessMetadataOnEdit) {
+			return;
+		}
+
+		// Clear existing timer
+		if (this.metadataDebounceTimer) {
+			clearTimeout(this.metadataDebounceTimer);
+		}
+
+		// Set new timer
+		this.metadataDebounceTimer = setTimeout(async () => {
+			const count = await this.taskMetadataHandler.processTaskMetadata(editor);
+			if (count > 0) {
+				new Notice(`Auto-processed ${count} task(s)`);
+			}
+			this.metadataDebounceTimer = null;
+		}, this.settings.autoProcessMetadataDebounceMs);
+	}
+
+	/**
+	 * Debounced task tagging - waits for edits to stop before tagging
+	 */
+	private debouncedTaskTagging(file: TFile): void {
+		// Only proceed if auto-tagging on edit is enabled
+		if (!this.settings.autoTagTasksOnEdit || !this.settings.taskTaggingEnabled) {
+			return;
+		}
+
+		// Clear existing timer
+		if (this.taggingDebounceTimer) {
+			clearTimeout(this.taggingDebounceTimer);
+		}
+
+		// Set new timer
+		this.taggingDebounceTimer = setTimeout(async () => {
+			const count = await this.taskTagger.tagTasksInFile(file);
+			if (count > 0) {
+				new Notice(`Auto-tagged ${count} task(s)`);
+			}
+			this.taggingDebounceTimer = null;
+		}, this.settings.autoTagTasksDebounceMs);
 	}
 
 	private isDailyNote(file: TFile): boolean {

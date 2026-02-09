@@ -29,6 +29,8 @@ export interface DailyOrganizerSettings {
 
 	// Task Metadata Processing
 	autoProcessMetadataBeforeMigration: boolean;
+	autoProcessMetadataOnEdit: boolean;
+	autoProcessMetadataDebounceMs: number;
 
 	// Task Completion Date Settings
 	completionDateEnabled: boolean;
@@ -57,6 +59,8 @@ export interface DailyOrganizerSettings {
 	// Task Tagging Settings
 	taskTaggingEnabled: boolean;
 	autoTagTasksBeforeMigration: boolean;
+	autoTagTasksOnEdit: boolean;
+	autoTagTasksDebounceMs: number;
 	ignoreProjectTaggingTag: string;
 }
 
@@ -77,6 +81,8 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 
 	// Task Metadata Processing
 	autoProcessMetadataBeforeMigration: false,
+	autoProcessMetadataOnEdit: false,
+	autoProcessMetadataDebounceMs: 5000,
 
 	// Project Updates Settings
 	projectTag: '#project',
@@ -113,6 +119,8 @@ export const DEFAULT_SETTINGS: DailyOrganizerSettings = {
 	// Task Tagging Settings
 	taskTaggingEnabled: true,
 	autoTagTasksBeforeMigration: false,
+	autoTagTasksOnEdit: false,
+	autoTagTasksDebounceMs: 5000,
 	ignoreProjectTaggingTag: '#ignore-project-tagging',
 };
 
@@ -256,6 +264,33 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 					this.plugin.settings.autoProcessMetadataBeforeMigration = value;
 					await this.plugin.saveSettings();
 				}));
+
+		new Setting(containerEl)
+			.setName('Auto-process on Edit')
+			.setDesc('Automatically process task metadata after you stop editing (uses debounce delay)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoProcessMetadataOnEdit)
+				.onChange(async (value) => {
+					this.plugin.settings.autoProcessMetadataOnEdit = value;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		if (this.plugin.settings.autoProcessMetadataOnEdit) {
+			new Setting(containerEl)
+				.setName('Metadata Processing Debounce (ms)')
+				.setDesc('Wait time in milliseconds after the last edit before auto-processing (default: 5000 = 5 seconds)')
+				.addText(text => text
+					.setPlaceholder('5000')
+					.setValue(String(this.plugin.settings.autoProcessMetadataDebounceMs))
+					.onChange(async (value) => {
+						const num = parseInt(value);
+						if (!isNaN(num) && num >= 1000) {
+							this.plugin.settings.autoProcessMetadataDebounceMs = num;
+							await this.plugin.saveSettings();
+						}
+					}));
+		}
 
 		// Project Updates Section
 		containerEl.createEl('h2', { text: 'Project Updates' });
@@ -515,6 +550,33 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 					this.plugin.settings.taskTaggingEnabled = value;
 					await this.plugin.saveSettings();
 				}));
+
+		new Setting(containerEl)
+			.setName('Auto-tag Tasks on Edit')
+			.setDesc('Automatically tag tasks with project tags after you stop editing (uses debounce delay)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoTagTasksOnEdit)
+				.onChange(async (value) => {
+					this.plugin.settings.autoTagTasksOnEdit = value;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		if (this.plugin.settings.autoTagTasksOnEdit) {
+			new Setting(containerEl)
+				.setName('Task Tagging Debounce (ms)')
+				.setDesc('Wait time in milliseconds after the last edit before auto-tagging (default: 5000 = 5 seconds)')
+				.addText(text => text
+					.setPlaceholder('5000')
+					.setValue(String(this.plugin.settings.autoTagTasksDebounceMs))
+					.onChange(async (value) => {
+						const num = parseInt(value);
+						if (!isNaN(num) && num >= 1000) {
+							this.plugin.settings.autoTagTasksDebounceMs = num;
+							await this.plugin.saveSettings();
+						}
+					}));
+		}
 
 		new Setting(containerEl)
 			.setName('Ignore Project Tagging Tag')

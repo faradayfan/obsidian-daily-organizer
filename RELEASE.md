@@ -154,7 +154,22 @@ Check the auto-generated Release PR:
 1. Go to [Pull Requests](https://github.com/faradayfan/obsidian-daily-organizer/pulls)
 2. Look for a PR titled like `chore(main): release 1.1.0`
 3. Review the version bump and changelog
-4. Verify all changes are correct
+4. **Update versions.json** (required manual step):
+
+   ```bash
+   # Checkout the release PR branch locally
+   gh pr checkout <PR-NUMBER>
+
+   # Run the update script
+   node scripts/update-versions.mjs
+
+   # Commit the change
+   git add versions.json
+   git commit -m "chore: update versions.json"
+   git push
+   ```
+
+5. Verify all changes are correct
 
 ### 6. Merge the Release PR
 
@@ -260,6 +275,7 @@ Before merging a Release PR:
 - [ ] CHANGELOG entries are accurate
 - [ ] All CI checks pass on the Release PR
 - [ ] `manifest.json` version matches `package.json`
+- [ ] `versions.json` has been updated (run `node scripts/update-versions.mjs`)
 - [ ] No breaking changes without `BREAKING CHANGE:` in footer
 
 After release is created:

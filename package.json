@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "obsidian-daily-organizer",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Automatically migrate todos, add task metadata with natural language parsing, tag tasks by project, and generate AI-powered project updates for your Obsidian daily notes",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
@@ -11,9 +11,30 @@
 		"test:watch": "jest --watch",
 		"test:coverage": "jest --coverage",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"lint": "eslint ."
+		"lint": "eslint .",
+		"prepare-release": "npm run lint && npm test && npm run build"
 	},
-	"keywords": [],
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin",
+		"daily-notes",
+		"todo",
+		"task-management",
+		"ai",
+		"llm",
+		"project-management",
+		"automation",
+		"productivity"
+	],
+	"author": "faradayfan",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/faradayfan/obsidian-daily-organizer.git"
+	},
+	"bugs": {
+		"url": "https://github.com/faradayfan/obsidian-daily-organizer/issues"
+	},
+	"homepage": "https://github.com/faradayfan/obsidian-daily-organizer#readme",
 	"license": "0-BSD",
 	"devDependencies": {
 		"@eslint/js": "9.30.1",

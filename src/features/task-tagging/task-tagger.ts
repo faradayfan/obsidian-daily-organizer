@@ -36,6 +36,7 @@ export class TaskTagger {
 
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!view || !view.file) {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			new Notice('No active markdown file.');
 			return;
 		}

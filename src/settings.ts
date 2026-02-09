@@ -1,3 +1,4 @@
+/* eslint-disable obsidianmd/ui/sentence-case */
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type DailyOrganizerPlugin from "./main";
 
@@ -137,7 +138,7 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// LLM Configuration Section
-		containerEl.createEl('h2', { text: 'LLM Configuration' });
+		new Setting(containerEl).setName("LLM Configuration").setHeading();
 
 		new Setting(containerEl)
 			.setName('LLM Provider')
@@ -208,7 +209,7 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 		}
 
 		// Daily Notes Section
-		containerEl.createEl('h2', { text: 'Daily Notes' });
+		new Setting(containerEl).setName("Daily Notes").setHeading();
 
 		new Setting(containerEl)
 			.setName('Daily Notes Folder')
@@ -222,7 +223,7 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				}));
 
 		// Todo Migration Section
-		containerEl.createEl('h2', { text: 'Todo Migration' });
+		new Setting(containerEl).setName("Todo Migration").setHeading();
 
 		new Setting(containerEl)
 			.setName('Enable Auto Migration')
@@ -293,7 +294,7 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 		}
 
 		// Project Updates Section
-		containerEl.createEl('h2', { text: 'Project Updates' });
+		new Setting(containerEl).setName("Project Updates").setHeading();
 
 		new Setting(containerEl)
 			.setName('Project Tag')
@@ -360,7 +361,7 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 				}));
 
 		// Task Metadata Section
-		containerEl.createEl('h2', { text: 'Task Metadata' });
+		new Setting(containerEl).setName("Task Metadata").setHeading();
 
 		new Setting(containerEl)
 			.setName('Enable Created Date')
@@ -539,7 +540,7 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 		}
 
 		// Task Tagging Section
-		containerEl.createEl('h2', { text: 'Task Tagging' });
+		new Setting(containerEl).setName("Task Tagging").setHeading();
 
 		new Setting(containerEl)
 			.setName('Enable Task Tagging')

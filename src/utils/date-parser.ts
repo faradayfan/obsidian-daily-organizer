@@ -202,9 +202,9 @@ export function extractDueDate(text: string, referenceDate: Date = new Date()): 
 
 			return {
 				date: parsedDate,
-				matchedText: match[0] as string,
+				matchedText: match[0],
 				startIndex: matchIndex,
-				endIndex: matchIndex + (match[0] as string).length,
+				endIndex: matchIndex + (match[0]).length,
 			};
 		}
 	}

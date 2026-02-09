@@ -144,8 +144,8 @@ export class TaskMetadataHandler {
 			if (this.settings.dueDateEnabled && this.settings.dueDateAutoDetect) {
 				// Remove all existing metadata emojis and inline fields before parsing
 				const cleanedForParsing = originalLine
-					.replace(/\s*\[[\w-]+::\s*[^\]]+\]/g, '') // Remove inline fields
-					.replace(/\s*[⏫🔼🔽⏬✅➕📅]\s*\d{4}-\d{2}-\d{2}/g, ''); // Remove shorthand metadata
+					.replace(/\s*\[[\w-]+::\s*[^\]]+\]/gu, '') // Remove inline fields
+					.replace(/\s*[⏫🔼🔽⏬✅➕📅]\s*\d{4}-\d{2}-\d{2}/gu, ''); // Remove shorthand metadata
 
 				const parsedDate = extractDueDate(cleanedForParsing);
 				if (parsedDate) {
@@ -156,7 +156,7 @@ export class TaskMetadataHandler {
 					// Remove the natural language text from the ORIGINAL line (before metadata was added)
 					if (this.settings.dueDateRemoveExpression) {
 						// Find the expression in the original line to remove it
-						const originalParsed = extractDueDate(originalLine.replace(/\s*\[[\w-]+::\s*[^\]]+\]/g, '').replace(/\s*[⏫🔼🔽⏬✅➕📅]\s*\d{4}-\d{2}-\d{2}/g, ''));
+						const originalParsed = extractDueDate(originalLine.replace(/\s*\[[\w-]+::\s*[^\]]+\]/gu, '').replace(/\s*[⏫🔼🔽⏬✅➕📅]\s*\d{4}-\d{2}-\d{2}/gu, ''));
 						if (originalParsed) {
 							// Remove from original, then re-add any metadata we added
 							const lineWithoutExpression = removeDueDateExpression(originalLine, originalParsed);
@@ -184,8 +184,8 @@ export class TaskMetadataHandler {
 			if (this.settings.priorityEnabled && this.settings.priorityAutoDetect) {
 				// Remove all existing metadata before parsing
 				const cleanedForParsing = originalLine
-					.replace(/\s*\[[\w-]+::\s*[^\]]+\]/g, '')
-					.replace(/\s*[⏫🔼🔽⏬✅➕📅]\s*\d{4}-\d{2}-\d{2}/g, '');
+					.replace(/\s*\[[\w-]+::\s*[^\]]+\]/gu, '')
+					.replace(/\s*[⏫🔼🔽⏬✅➕📅]\s*\d{4}-\d{2}-\d{2}/gu, '');
 
 				const parsedPriority = extractPriority(cleanedForParsing);
 				if (parsedPriority) {
@@ -197,8 +197,8 @@ export class TaskMetadataHandler {
 						// Extract priority from the CURRENT lineContent (with metadata stripped) to get correct indices
 						// This is important because lineContent may have been modified by due date expression removal
 						const currentLineCleaned = lineContent
-							.replace(/\s*\[[\w-]+::\s*[^\]]+\]/g, '')
-							.replace(/\s*[⏫🔼🔽⏬✅➕📅]\s*\d{4}-\d{2}-\d{2}/g, '');
+							.replace(/\s*\[[\w-]+::\s*[^\]]+\]/gu, '')
+							.replace(/\s*[⏫🔼🔽⏬✅➕📅]\s*\d{4}-\d{2}-\d{2}/gu, '');
 						const currentParsed = extractPriority(currentLineCleaned);
 						if (currentParsed) {
 							lineContent = removePriorityExpression(lineContent, currentParsed);

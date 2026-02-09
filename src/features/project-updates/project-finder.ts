@@ -44,7 +44,7 @@ export class ProjectFinder {
 				? cache.frontmatter.tags
 				: [cache.frontmatter.tags];
 
-			if (tags.some(t => this.normalizeTag(t) === targetTag)) {
+			if (tags.some((t: string) => this.normalizeTag(t) === targetTag)) {
 				return true;
 			}
 		}

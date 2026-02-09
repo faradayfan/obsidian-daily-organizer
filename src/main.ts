@@ -1,4 +1,4 @@
-import { Plugin, TFile, MarkdownView, Notice } from 'obsidian';
+import { Plugin, TFile, MarkdownView, Notice, Editor } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	DailyOrganizerSettings,
@@ -26,8 +26,8 @@ export default class DailyOrganizerPlugin extends Plugin {
 	private taskTagger: TaskTagger;
 
 	// Debounce timers for auto-processing
-	private metadataDebounceTimer: NodeJS.Timeout | null = null;
-	private taggingDebounceTimer: NodeJS.Timeout | null = null;
+	private metadataDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private taggingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -36,7 +36,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 		this.registerEventHandlers();
 		this.addSettingTab(new DailyOrganizerSettingTab(this.app, this));
 
-		console.log('Daily Organizer plugin loaded');
+		console.debug('Daily Organizer plugin loaded');
 	}
 
 	onunload() {
@@ -47,7 +47,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 		if (this.taggingDebounceTimer) {
 			clearTimeout(this.taggingDebounceTimer);
 		}
-		console.log('Daily Organizer plugin unloaded');
+		console.debug('Daily Organizer plugin unloaded');
 	}
 
 	private initializeServices(): void {
@@ -93,9 +93,10 @@ export default class DailyOrganizerPlugin extends Plugin {
 		});
 
 		// Update current project keywords command
+		 
 		this.addCommand({
 			id: 'update-current-project-keywords',
-			name: 'Update keywords for current project (using LLM)',
+			name: 'Update keywords for current project (using LLM).', // eslint-disable-line obsidianmd/ui/sentence-case
 			callback: async () => {
 				await this.projectUpdater.updateCurrentProjectKeywords();
 			},
@@ -104,7 +105,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 		// Update all project keywords command
 		this.addCommand({
 			id: 'update-project-keywords',
-			name: 'Update keywords for all projects (using LLM)',
+			name: 'Update keywords for all projects (using LLM).', // eslint-disable-line obsidianmd/ui/sentence-case
 			callback: async () => {
 				await this.projectUpdater.updateAllProjectKeywords();
 			},
@@ -151,21 +152,22 @@ export default class DailyOrganizerPlugin extends Plugin {
 						return;
 					}
 
-					setTimeout(async () => {
-						console.log('Daily Organizer: New daily note created:', file.basename);
-						console.log('Daily Organizer: projectAutoUpdateEnabled:', this.settings.projectAutoUpdateEnabled);
-						console.log('Daily Organizer: todoMigrationEnabled:', this.settings.todoMigrationEnabled);
-						console.log('Daily Organizer: autoTagTasksBeforeMigration:', this.settings.autoTagTasksBeforeMigration);
-						console.log('Daily Organizer: autoProcessMetadataBeforeMigration:', this.settings.autoProcessMetadataBeforeMigration);
+					setTimeout(() => {
+					void (async () => {
+						console.debug('Daily Organizer: New daily note created:', file.basename);
+						console.debug('Daily Organizer: projectAutoUpdateEnabled:', this.settings.projectAutoUpdateEnabled);
+						console.debug('Daily Organizer: todoMigrationEnabled:', this.settings.todoMigrationEnabled);
+						console.debug('Daily Organizer: autoTagTasksBeforeMigration:', this.settings.autoTagTasksBeforeMigration);
+						console.debug('Daily Organizer: autoProcessMetadataBeforeMigration:', this.settings.autoProcessMetadataBeforeMigration);
 
 						const previousNote = await this.findPreviousDailyNote(file);
-						console.log('Daily Organizer: Previous note found:', previousNote?.basename ?? 'none');
+						console.debug('Daily Organizer: Previous note found:', previousNote?.basename ?? 'none');
 
 						// Auto-tag tasks BEFORE metadata processing
 						// This ensures project tags are added before metadata so metadata parsing is accurate
 						if (previousNote && this.settings.taskTaggingEnabled && this.settings.autoTagTasksBeforeMigration) {
 							const taggedCount = await this.taskTagger.tagTasksInFile(previousNote);
-							console.log(`Daily Organizer: Tagged ${taggedCount} task(s) in previous note`);
+							console.debug(`Daily Organizer: Tagged ${taggedCount} task(s) in previous note`);
 						}
 
 						// Auto-process task metadata BEFORE project updates and migration
@@ -174,7 +176,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 							const previousView = this.app.workspace.getActiveViewOfType(MarkdownView);
 							if (previousView && previousView.file?.path === previousNote.path && previousView.editor) {
 								const count = await this.taskMetadataHandler.processTaskMetadata(previousView.editor);
-								console.log(`Daily Organizer: Processed ${count} task(s) in previous note`);
+								console.debug(`Daily Organizer: Processed ${count} task(s) in previous note`);
 							} else {
 								// Open the previous note to process it
 								const leaf = this.app.workspace.getLeaf(false);
@@ -182,7 +184,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 								const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 								if (view && view.editor) {
 									const count = await this.taskMetadataHandler.processTaskMetadata(view.editor);
-									console.log(`Daily Organizer: Processed ${count} task(s) in previous note`);
+									console.debug(`Daily Organizer: Processed ${count} task(s) in previous note`);
 								}
 								// Switch back to the new note
 								const newLeaf = this.app.workspace.getLeaf(false);
@@ -201,7 +203,8 @@ export default class DailyOrganizerPlugin extends Plugin {
 						if (this.settings.todoMigrationEnabled) {
 							await this.todoMigrator.migrateTodos(file);
 						}
-					}, 500);
+					})();
+				}, 500);
 				}
 			})
 		);
@@ -276,7 +279,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 	/**
 	 * Debounced task metadata processing - waits for edits to stop before processing
 	 */
-	private debouncedMetadataProcessing(editor: any, view: MarkdownView): void {
+	private debouncedMetadataProcessing(editor: Editor, _view: MarkdownView): void {
 		// Only proceed if auto-processing on edit is enabled
 		if (!this.settings.autoProcessMetadataOnEdit) {
 			return;
@@ -288,12 +291,14 @@ export default class DailyOrganizerPlugin extends Plugin {
 		}
 
 		// Set new timer
-		this.metadataDebounceTimer = setTimeout(async () => {
-			const count = await this.taskMetadataHandler.processTaskMetadata(editor);
-			if (count > 0) {
-				new Notice(`Auto-processed ${count} task(s)`);
-			}
-			this.metadataDebounceTimer = null;
+		this.metadataDebounceTimer = setTimeout(() => {
+			void (async () => {
+				const count = await this.taskMetadataHandler.processTaskMetadata(editor);
+				if (count > 0) {
+					new Notice(`Auto-processed ${count} task(s)`);
+				}
+				this.metadataDebounceTimer = null;
+			})();
 		}, this.settings.autoProcessMetadataDebounceMs);
 	}
 
@@ -312,12 +317,14 @@ export default class DailyOrganizerPlugin extends Plugin {
 		}
 
 		// Set new timer
-		this.taggingDebounceTimer = setTimeout(async () => {
-			const count = await this.taskTagger.tagTasksInFile(file);
-			if (count > 0) {
-				new Notice(`Auto-tagged ${count} task(s)`);
-			}
-			this.taggingDebounceTimer = null;
+		this.taggingDebounceTimer = setTimeout(() => {
+			void (async () => {
+				const count = await this.taskTagger.tagTasksInFile(file);
+				if (count > 0) {
+					new Notice(`Auto-tagged ${count} task(s)`);
+				}
+				this.taggingDebounceTimer = null;
+			})();
 		}, this.settings.autoTagTasksDebounceMs);
 	}
 

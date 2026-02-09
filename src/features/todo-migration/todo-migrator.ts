@@ -27,20 +27,20 @@ export class TodoMigrator {
 		// Extract date from current note filename
 		const currentDate = extractDateFromFilename(currentDayNote.basename);
 		if (!currentDate) {
-			console.log('Daily Organizer: Could not parse date from filename:', currentDayNote.basename);
+			console.debug('Daily Organizer: Could not parse date from filename:', currentDayNote.basename);
 			return;
 		}
 
 		// Find the most recent previous daily note (handles weekends/gaps)
 		const previousNote = await this.findPreviousDailyNote(currentDate);
 		if (!previousNote) {
-			console.log('Daily Organizer: No previous daily note found');
+			console.debug('Daily Organizer: No previous daily note found');
 			return;
 		}
 
 		const previousDate = extractDateFromFilename(previousNote.basename);
 		if (!previousDate) {
-			console.log('Daily Organizer: Could not parse date from previous note:', previousNote.basename);
+			console.debug('Daily Organizer: Could not parse date from previous note:', previousNote.basename);
 			return;
 		}
 
@@ -51,7 +51,7 @@ export class TodoMigrator {
 		const uncompletedTodos = this.parser.parseUncompletedTodos(previousContent);
 
 		if (uncompletedTodos.length === 0) {
-			console.log('Daily Organizer: No uncompleted todos to migrate');
+			console.debug('Daily Organizer: No uncompleted todos to migrate');
 			return;
 		}
 
@@ -66,7 +66,7 @@ export class TodoMigrator {
 
 		// Check if todos are already present (prevent duplicate migration)
 		if (this.todosAlreadyPresent(currentContent, uncompletedTodos)) {
-			console.log('Daily Organizer: Todos appear to be already migrated');
+			console.debug('Daily Organizer: Todos appear to be already migrated');
 			return;
 		}
 
@@ -85,7 +85,7 @@ export class TodoMigrator {
 		await this.app.vault.modify(previousNote, updatedPreviousContent);
 
 		new Notice(`Migrated ${uncompletedTodos.length} todo(s) from ${previousDateStr}`);
-		console.log(`Daily Organizer: Migrated ${uncompletedTodos.length} todos from ${previousDateStr}`);
+		console.debug(`Daily Organizer: Migrated ${uncompletedTodos.length} todos from ${previousDateStr}`);
 	}
 
 	private async findPreviousDailyNote(currentDate: Date): Promise<TFile | null> {

@@ -32,6 +32,7 @@ export class ProjectUpdater {
 	async updateCurrentProjectKeywords(): Promise<void> {
 		// Check if LLM is configured
 		if (!this.llmService.isConfigured()) {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			new Notice('LLM API key not configured. Please add it in settings.');
 			return;
 		}
@@ -66,6 +67,7 @@ export class ProjectUpdater {
 	async updateAllProjectKeywords(): Promise<void> {
 		// Check if LLM is configured
 		if (!this.llmService.isConfigured()) {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			new Notice('LLM API key not configured. Please add it in settings.');
 			return;
 		}
@@ -92,7 +94,7 @@ export class ProjectUpdater {
 	}
 
 	async updateProjectKeywords(project: ProjectMetadata): Promise<boolean> {
-		console.log(`Daily Organizer: Generating keywords for project ${project.name}`);
+		console.debug(`Daily Organizer: Generating keywords for project ${project.name}`);
 
 		// Get project content
 		const projectContent = await this.projectFinder.getProjectContent(project);
@@ -101,7 +103,7 @@ export class ProjectUpdater {
 		const projectSections = this.extractProjectSections(projectContent);
 
 		if (!projectSections || projectSections.trim().length === 0) {
-			console.log(`Daily Organizer: No project sections found for ${project.name}`);
+			console.debug(`Daily Organizer: No project sections found for ${project.name}`);
 			return false;
 		}
 
@@ -114,13 +116,13 @@ export class ProjectUpdater {
 		}
 
 		if (!response.content || response.content.trim().length === 0) {
-			console.log(`Daily Organizer: No keywords generated for ${project.name}`);
+			console.debug(`Daily Organizer: No keywords generated for ${project.name}`);
 			return false;
 		}
 
 		// Clean up the response - ensure it's just keywords
 		const keywordsString = response.content.trim();
-		console.log(`Daily Organizer: Generated keywords for ${project.name}: ${keywordsString}`);
+		console.debug(`Daily Organizer: Generated keywords for ${project.name}: ${keywordsString}`);
 
 		// Convert to array if setting is enabled
 		let keywordsValue: string | string[];
@@ -148,7 +150,7 @@ export class ProjectUpdater {
 		// Parse frontmatter
 		const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
 		if (!frontmatterMatch) {
-			console.log(`Daily Organizer: No frontmatter found in ${project.path}`);
+			console.debug(`Daily Organizer: No frontmatter found in ${project.path}`);
 			return;
 		}
 
@@ -184,12 +186,13 @@ export class ProjectUpdater {
 		const newContent = `---\n${newFrontmatter}\n---${afterFrontmatter}`;
 		await this.app.vault.modify(file, newContent);
 
-		console.log(`Daily Organizer: Updated ${key} in ${project.path}`);
+		console.debug(`Daily Organizer: Updated ${key} in ${project.path}`);
 	}
 
 	async updateAllProjects(): Promise<void> {
 		// Check if LLM is configured
 		if (!this.llmService.isConfigured()) {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			new Notice('LLM API key not configured. Please add it in settings.');
 			return;
 		}
@@ -237,7 +240,7 @@ export class ProjectUpdater {
 	async updateProjectsFromNote(noteFile: TFile): Promise<void> {
 		// Check if LLM is configured
 		if (!this.llmService.isConfigured()) {
-			console.log('Daily Organizer: LLM not configured, skipping auto project update');
+			console.debug('Daily Organizer: LLM not configured, skipping auto project update');
 			return;
 		}
 
@@ -245,13 +248,13 @@ export class ProjectUpdater {
 		let projects = await this.projectFinder.findProjects();
 
 		if (projects.length === 0) {
-			console.log('Daily Organizer: No projects found for auto-update');
+			console.debug('Daily Organizer: No projects found for auto-update');
 			return;
 		}
 
 		// Optionally update keywords first
 		if (this.settings.autoUpdateProjectKeywords) {
-			console.log(`Daily Organizer: Auto-updating keywords for ${projects.length} project(s)`);
+			console.debug(`Daily Organizer: Auto-updating keywords for ${projects.length} project(s)`);
 			for (const project of projects) {
 				await this.updateProjectKeywords(project);
 			}
@@ -263,7 +266,7 @@ export class ProjectUpdater {
 		const noteContent = await this.app.vault.read(noteFile);
 
 		if (!noteContent || noteContent.trim().length === 0) {
-			console.log('Daily Organizer: Note is empty, skipping auto project update');
+			console.debug('Daily Organizer: Note is empty, skipping auto project update');
 			return;
 		}
 
@@ -271,7 +274,7 @@ export class ProjectUpdater {
 		const noteDate = extractDateFromFilename(noteFile.basename);
 		const dateStr = noteDate ? formatDate(noteDate, 'YYYY-MM-DD') : noteFile.basename;
 
-		console.log(`Daily Organizer: Auto-updating projects from ${dateStr}`);
+		console.debug(`Daily Organizer: Auto-updating projects from ${dateStr}`);
 
 		// Update each project
 		let updatedCount = 0;
@@ -285,7 +288,7 @@ export class ProjectUpdater {
 		if (updatedCount > 0) {
 			new Notice(`Updated ${updatedCount} project(s) with progress from ${dateStr}`);
 		}
-		console.log(`Daily Organizer: Auto-updated ${updatedCount} project(s) from ${dateStr}`);
+		console.debug(`Daily Organizer: Auto-updated ${updatedCount} project(s) from ${dateStr}`);
 	}
 
 	private async updateProject(
@@ -301,11 +304,11 @@ export class ProjectUpdater {
 		notesContent: string,
 		dateStr: string
 	): Promise<boolean> {
-		console.log(`Daily Organizer: Updating project ${project.name} for ${dateStr}`);
+		console.debug(`Daily Organizer: Updating project ${project.name} for ${dateStr}`);
 
 		// Get project content first (needed for both context and updates)
 		const projectContent = await this.projectFinder.getProjectContent(project);
-		console.log(`Daily Organizer: Project content length: ${projectContent.length} chars`);
+		console.debug(`Daily Organizer: Project content length: ${projectContent.length} chars`);
 
 		// Build enhanced project context from metadata and content
 		const projectContext = this.buildProjectContext(project, projectContent);
@@ -315,27 +318,27 @@ export class ProjectUpdater {
 
 		// Check if we already have an update for this date
 		if (existingUpdates && existingUpdates.includes(`### ${dateStr}`)) {
-			console.log(`Daily Organizer: Project ${project.name} already has update for ${dateStr}`);
+			console.debug(`Daily Organizer: Project ${project.name} already has update for ${dateStr}`);
 			return false;
 		}
 
 		// Pre-filter notes to only potentially relevant sections
 		const relevantContent = this.extractRelevantContent(notesContent, project);
-		console.log(`Daily Organizer: Relevant content length: ${relevantContent?.length ?? 0} chars`);
+		console.debug(`Daily Organizer: Relevant content length: ${relevantContent?.length ?? 0} chars`);
 
 		if (!relevantContent || relevantContent.trim().length === 0) {
-			console.log(`Daily Organizer: No content mentioning ${project.name} found in daily notes`);
+			console.debug(`Daily Organizer: No content mentioning ${project.name} found in daily notes`);
 			return false;
 		}
 
 		// Generate update using LLM
-		console.log(`Daily Organizer: Calling LLM for project ${project.name}...`);
+		console.debug(`Daily Organizer: Calling LLM for project ${project.name}...`);
 		const response = await this.llmService.analyzeForProject(
 			projectContext,
 			relevantContent,
 			existingUpdates
 		);
-		console.log(`Daily Organizer: LLM response - error: ${response.error ?? 'none'}, content length: ${response.content?.length ?? 0}`);
+		console.debug(`Daily Organizer: LLM response - error: ${response.error ?? 'none'}, content length: ${response.content?.length ?? 0}`);
 
 		if (response.error) {
 			console.error(`Daily Organizer: Error updating project ${project.name}:`, response.error);
@@ -343,22 +346,22 @@ export class ProjectUpdater {
 		}
 
 		if (!response.content || response.content.trim().length === 0) {
-			console.log(`Daily Organizer: No relevant update generated for ${project.name}`);
+			console.debug(`Daily Organizer: No relevant update generated for ${project.name}`);
 			return false;
 		}
 
 		// Check if LLM indicated no relevant updates
 		if (response.content.includes('NO_RELEVANT_UPDATES')) {
-			console.log(`Daily Organizer: No relevant updates for ${project.name}`);
+			console.debug(`Daily Organizer: No relevant updates for ${project.name}`);
 			return false;
 		}
 
-		console.log(`Daily Organizer: LLM response content:\n${response.content}`);
-		console.log(`Daily Organizer: Inserting update into project page...`);
+		console.debug(`Daily Organizer: LLM response content:\n${response.content}`);
+		console.debug(`Daily Organizer: Inserting update into project page...`);
 
 		// Insert update into project page
 		await this.insertUpdateWithDate(project, response.content, dateStr);
-		console.log(`Daily Organizer: Successfully inserted update for ${project.name}`);
+		console.debug(`Daily Organizer: Successfully inserted update for ${project.name}`);
 		return true;
 	}
 
@@ -506,7 +509,7 @@ export class ProjectUpdater {
 
 			keywords.push(...keywordList.map(k => k.trim().toLowerCase()).filter(k => k.length > 0));
 		}
-		console.log(`Daily Organizer: Searching for project name "${projectName}", tag "${projectTag}", and keywords:`, keywords);
+		console.debug(`Daily Organizer: Searching for project name "${projectName}", tag "${projectTag}", and keywords:`, keywords);
 
 		// Track which lines are already included via tagged tasks to avoid duplicates
 		const taggedLineRanges: Set<number> = new Set();

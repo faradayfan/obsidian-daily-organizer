@@ -225,11 +225,12 @@ export default class DailyOrganizerPlugin extends Plugin {
 					// Always track changes for immediate metadata (like completion dates)
 					this.taskMetadataHandler.handleEditorChange(editor, view);
 
-					// Debounced auto-processing of all tasks (if enabled)
-					this.debouncedMetadataProcessing(editor, view);
+					// Only run debounced auto-processing and auto-tagging on daily notes
+					if (view.file && this.isDailyNote(view.file)) {
+						// Debounced auto-processing of all tasks (if enabled)
+						this.debouncedMetadataProcessing(editor, view);
 
-					// Debounced auto-tagging (if enabled)
-					if (view.file) {
+						// Debounced auto-tagging (if enabled)
 						this.debouncedTaskTagging(view.file);
 					}
 				}

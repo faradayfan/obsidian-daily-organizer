@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-daily-organizer",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Automatically migrate todos, add task metadata with natural language parsing, tag tasks by project, and generate AI-powered project updates for your Obsidian daily notes",
 	"main": "main.js",
 	"type": "module",

@@ -159,8 +159,8 @@ export default class DailyOrganizerPlugin extends Plugin {
 						console.debug('Daily Organizer: todoMigrationEnabled:', this.settings.todoMigrationEnabled);
 						console.debug('Daily Organizer: autoTagTasksBeforeMigration:', this.settings.autoTagTasksBeforeMigration);
 						console.debug('Daily Organizer: autoProcessMetadataBeforeMigration:', this.settings.autoProcessMetadataBeforeMigration);
-
-						const statusNotice = new Notice('Daily Organizer: Setting up daily note...', 0);
+						
+						const statusNotice = new Notice('Daily Organizer: Setting up daily note...', 0); // eslint-disable-line obsidianmd/ui/sentence-case
 
 						const previousNote = await this.findPreviousDailyNote(file);
 						console.debug('Daily Organizer: Previous note found:', previousNote?.basename ?? 'none');
@@ -211,7 +211,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 						}
 
 						statusNotice.hide();
-						new Notice('Daily Organizer: Daily note ready');
+						new Notice('Daily Organizer: Daily note ready'); // eslint-disable-line obsidianmd/ui/sentence-case
 					})();
 				}, 500);
 				}

@@ -1,4 +1,5 @@
 import { TodoParser } from '../todo-parser';
+import type { CreatedDateConfig } from '../todo-parser';
 import type { TodoItem } from '../../../types';
 
 describe('TodoParser', () => {
@@ -575,6 +576,94 @@ More text`;
 			expect(result).not.toContain('Plain bullet');
 			expect(result).not.toContain('Checkbox');
 			expect(result).toContain('Keep this');
+		});
+	});
+
+	describe('Created Date Settings Integration', () => {
+		it('should detect shorthand created dates during parsing', () => {
+			const shorthandParser = new TodoParser({ enabled: true, fieldName: 'created', useShorthand: true });
+			const content = `- [ ] Task with shorthand ➕2024-01-15`;
+
+			const todos = shorthandParser.parseTodos(content);
+
+			expect(todos[0].createdDate).toBe('2024-01-15');
+		});
+
+		it('should detect custom field name during parsing', () => {
+			const customParser = new TodoParser({ enabled: true, fieldName: 'date-created', useShorthand: false });
+			const content = `- [ ] Task [date-created:: 2024-01-15]`;
+
+			const todos = customParser.parseTodos(content);
+
+			expect(todos[0].createdDate).toBe('2024-01-15');
+		});
+
+		it('should not add duplicate created date when shorthand already exists', () => {
+			const shorthandParser = new TodoParser({ enabled: true, fieldName: 'created', useShorthand: true });
+			const content = 'Task ➕2024-01-15';
+			const result = shorthandParser.addCreatedMetadata(content, '2024-02-04');
+
+			expect(result).toBe(content);
+		});
+
+		it('should not add duplicate created date when custom field already exists', () => {
+			const customParser = new TodoParser({ enabled: true, fieldName: 'date-created', useShorthand: false });
+			const content = 'Task [date-created:: 2024-01-15]';
+			const result = customParser.addCreatedMetadata(content, '2024-02-04');
+
+			expect(result).toBe(content);
+		});
+
+		it('should use shorthand format when configured', () => {
+			const shorthandParser = new TodoParser({ enabled: true, fieldName: 'created', useShorthand: true });
+			const result = shorthandParser.addCreatedMetadata('Task', '2024-02-04');
+
+			expect(result).toBe('Task ➕2024-02-04');
+		});
+
+		it('should use custom field name when configured', () => {
+			const customParser = new TodoParser({ enabled: true, fieldName: 'date-created', useShorthand: false });
+			const result = customParser.addCreatedMetadata('Task', '2024-02-04');
+
+			expect(result).toBe('Task [date-created:: 2024-02-04]');
+		});
+
+		it('should not add created date during migration when disabled', () => {
+			const disabledParser = new TodoParser({ enabled: false, fieldName: 'created', useShorthand: false });
+			const content = `- [ ] Task without date`;
+
+			const todos = disabledParser.parseUncompletedTodos(content);
+			const formatted = disabledParser.formatTodosForSection(todos, '2024-02-04');
+
+			expect(formatted).not.toContain('[created::');
+			expect(formatted).not.toContain('➕');
+		});
+
+		it('should preserve existing shorthand created dates during migration', () => {
+			const shorthandParser = new TodoParser({ enabled: true, fieldName: 'created', useShorthand: true });
+			const content = `- [ ] Task ➕2024-01-15`;
+
+			const todos = shorthandParser.parseUncompletedTodos(content);
+			const formatted = shorthandParser.formatTodosForSection(todos, '2024-02-04');
+
+			expect(formatted).toContain('➕2024-01-15');
+			expect(formatted).not.toContain('➕2024-02-04');
+			expect(formatted).not.toContain('[created::');
+		});
+
+		it('should place shorthand format before tags', () => {
+			const shorthandParser = new TodoParser({ enabled: true, fieldName: 'created', useShorthand: true });
+			const result = shorthandParser.addCreatedMetadata('Task #tag1 #tag2', '2024-02-04');
+
+			expect(result).toBe('Task ➕2024-02-04 #tag1 #tag2');
+		});
+
+		it('should strip both inline and shorthand created metadata', () => {
+			expect(parser.stripCreatedMetadata('Task [created:: 2024-01-15]')).toBe('Task');
+			expect(parser.stripCreatedMetadata('Task ➕2024-01-15')).toBe('Task');
+
+			const customParser = new TodoParser({ enabled: true, fieldName: 'date-created', useShorthand: false });
+			expect(customParser.stripCreatedMetadata('Task [date-created:: 2024-01-15]')).toBe('Task');
 		});
 	});
 

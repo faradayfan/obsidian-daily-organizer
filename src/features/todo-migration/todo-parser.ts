@@ -1,9 +1,30 @@
 import type { TodoItem } from '../../types';
+import { escapeRegex } from '../task-metadata/completion-date';
+
+export interface CreatedDateConfig {
+	enabled: boolean;
+	fieldName: string;
+	useShorthand: boolean;
+}
 
 export class TodoParser {
 	private static readonly TODO_REGEX = /^(\s*)- \[([ xX])\] (.*)$/;
 	private static readonly BULLET_REGEX = /^(\s*)- (.*)$/;
-	private static readonly CREATED_REGEX = /\[created::\s*(\d{4}-\d{2}-\d{2})\]/;
+	private static readonly SHORTHAND_CREATED_REGEX = /➕(\d{4}-\d{2}-\d{2})/;
+
+	private createdDateConfig: CreatedDateConfig;
+	private createdInlineRegex: RegExp;
+
+	constructor(createdDateConfig?: CreatedDateConfig) {
+		this.createdDateConfig = createdDateConfig ?? {
+			enabled: true,
+			fieldName: 'created',
+			useShorthand: false,
+		};
+		this.createdInlineRegex = new RegExp(
+			`\\[${escapeRegex(this.createdDateConfig.fieldName)}::\\s*(\\d{4}-\\d{2}-\\d{2})\\]`
+		);
+	}
 
 	private buildTaskTree(todos: TodoItem[]): TodoItem[] {
 		const roots: TodoItem[] = [];
@@ -83,7 +104,8 @@ export class TodoParser {
 				const checkbox = todoMatch[2] ?? ' ';
 				const todoContent = todoMatch[3] ?? '';
 				const isCompleted = checkbox.toLowerCase() === 'x';
-				const createdMatch = todoContent.match(TodoParser.CREATED_REGEX);
+				const createdMatch = todoContent.match(this.createdInlineRegex)
+					|| todoContent.match(TodoParser.SHORTHAND_CREATED_REGEX);
 
 				// Detect indent size from first indented task
 				if (detectedIndentSize === null && indentation.length > 0) {
@@ -159,30 +181,44 @@ export class TodoParser {
 	}
 
 	addCreatedMetadata(todoContent: string, date: string): string {
-		// Check if already has created metadata
-		if (TodoParser.CREATED_REGEX.test(todoContent)) {
+		// Check if already has created metadata (both inline and shorthand formats)
+		if (this.createdInlineRegex.test(todoContent)) {
+			return todoContent;
+		}
+		if (TodoParser.SHORTHAND_CREATED_REGEX.test(todoContent)) {
 			return todoContent;
 		}
 
 		// Add metadata at the end, before any trailing tags
 		const tagMatch = todoContent.match(/(\s+#\S+)+$/);
+		const metadata = this.createdDateConfig.useShorthand
+			? ` ➕${date}`
+			: ` [${this.createdDateConfig.fieldName}:: ${date}]`;
+
 		if (tagMatch) {
 			const tagsStartIndex = todoContent.length - tagMatch[0].length;
 			return (
 				todoContent.slice(0, tagsStartIndex) +
-				` [created:: ${date}]` +
+				metadata +
 				todoContent.slice(tagsStartIndex)
 			);
 		}
 
-		return `${todoContent} [created:: ${date}]`;
+		return `${todoContent}${metadata}`;
+	}
+
+	stripCreatedMetadata(todoContent: string): string {
+		return todoContent
+			.replace(this.createdInlineRegex, '')
+			.replace(TodoParser.SHORTHAND_CREATED_REGEX, '')
+			.trim();
 	}
 
 	formatTodoLine(todo: TodoItem, newCreatedDate?: string): string {
 		let content = todo.content;
 
-		// Add created date if not present and date is provided (only for checkbox items)
-		if (todo.isCheckbox && newCreatedDate && !todo.createdDate) {
+		// Add created date if not present, date is provided, and feature is enabled (only for checkbox items)
+		if (this.createdDateConfig.enabled && todo.isCheckbox && newCreatedDate && !todo.createdDate) {
 			content = this.addCreatedMetadata(content, newCreatedDate);
 		}
 

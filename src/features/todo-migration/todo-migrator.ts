@@ -16,11 +16,20 @@ export class TodoMigrator {
 	constructor(app: App, settings: DailyOrganizerSettings) {
 		this.app = app;
 		this.settings = settings;
-		this.parser = new TodoParser();
+		this.parser = new TodoParser({
+			enabled: settings.createdDateEnabled,
+			fieldName: settings.createdDateField || 'created',
+			useShorthand: settings.createdDateUseShorthand,
+		});
 	}
 
 	updateSettings(settings: DailyOrganizerSettings): void {
 		this.settings = settings;
+		this.parser = new TodoParser({
+			enabled: settings.createdDateEnabled,
+			fieldName: settings.createdDateField || 'created',
+			useShorthand: settings.createdDateUseShorthand,
+		});
 	}
 
 	async migrateTodos(currentDayNote: TFile): Promise<void> {
@@ -140,7 +149,7 @@ export class TodoMigrator {
 		// This helps prevent duplicate migration
 		for (const todo of todos) {
 			// Extract just the core task text (without metadata) for comparison
-			const coreContent = todo.content.replace(/\[created::\s*\d{4}-\d{2}-\d{2}\]/, '').trim();
+			const coreContent = this.parser.stripCreatedMetadata(todo.content);
 			if (content.includes(coreContent)) {
 				return true;
 			}

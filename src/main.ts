@@ -160,12 +160,15 @@ export default class DailyOrganizerPlugin extends Plugin {
 						console.debug('Daily Organizer: autoTagTasksBeforeMigration:', this.settings.autoTagTasksBeforeMigration);
 						console.debug('Daily Organizer: autoProcessMetadataBeforeMigration:', this.settings.autoProcessMetadataBeforeMigration);
 
+						const statusNotice = new Notice('Daily Organizer: Setting up daily note...', 0);
+
 						const previousNote = await this.findPreviousDailyNote(file);
 						console.debug('Daily Organizer: Previous note found:', previousNote?.basename ?? 'none');
 
 						// Auto-tag tasks BEFORE metadata processing
 						// This ensures project tags are added before metadata so metadata parsing is accurate
 						if (previousNote && this.settings.taskTaggingEnabled && this.settings.autoTagTasksBeforeMigration) {
+							statusNotice.setMessage('Daily Organizer: Tagging tasks...');
 							const taggedCount = await this.taskTagger.tagTasksInFile(previousNote);
 							console.debug(`Daily Organizer: Tagged ${taggedCount} task(s) in previous note`);
 						}
@@ -173,6 +176,7 @@ export default class DailyOrganizerPlugin extends Plugin {
 						// Auto-process task metadata BEFORE project updates and migration
 						// This ensures tasks have metadata before being analyzed or migrated
 						if (previousNote && this.settings.autoProcessMetadataBeforeMigration) {
+							statusNotice.setMessage('Daily Organizer: Processing task metadata...');
 							const previousView = this.app.workspace.getActiveViewOfType(MarkdownView);
 							if (previousView && previousView.file?.path === previousNote.path && previousView.editor) {
 								const count = await this.taskMetadataHandler.processTaskMetadata(previousView.editor);
@@ -195,14 +199,19 @@ export default class DailyOrganizerPlugin extends Plugin {
 						// Auto-update projects BEFORE migrating todos
 						// This ensures the LLM sees uncompleted tasks in the previous note
 						if (this.settings.projectAutoUpdateEnabled && previousNote) {
+							statusNotice.setMessage('Daily Organizer: Updating projects...');
 							await this.projectUpdater.updateProjectsFromNote(previousNote);
 						}
 
 						// Auto-migrate todos after project updates and metadata processing
 						// This removes completed todos from the previous note
 						if (this.settings.todoMigrationEnabled) {
+							statusNotice.setMessage('Daily Organizer: Migrating todos...');
 							await this.todoMigrator.migrateTodos(file);
 						}
+
+						statusNotice.hide();
+						new Notice('Daily Organizer: Daily note ready');
 					})();
 				}, 500);
 				}

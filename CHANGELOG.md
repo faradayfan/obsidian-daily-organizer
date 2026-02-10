@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/faradayfan/obsidian-daily-organizer/compare/v1.0.0...v1.1.0) (2026-02-10)
+
+
+### Features
+
+* adding notice on daily note creation and related actions ([cad42ed](https://github.com/faradayfan/obsidian-daily-organizer/commit/cad42ed7e5b7fdf96b42a8efb2dda8bd7ee3071e))
+
+
+### Bug Fixes
+
+* bumping dependencies ([9e9c0c1](https://github.com/faradayfan/obsidian-daily-organizer/commit/9e9c0c1c84112d7a011d93170e82762bf80510f5))
+* fixing duplicate created metadata on task migration ([418fc53](https://github.com/faradayfan/obsidian-daily-organizer/commit/418fc536dcc7c871030e23ed5806d49d0dadccc9))
+* linting ([99bf8ee](https://github.com/faradayfan/obsidian-daily-organizer/commit/99bf8eebb0617b43ceb29687eb6497910ddc8565))
+* typescript upgrade 5.8.3 to 5.9.3 ([fba6acc](https://github.com/faradayfan/obsidian-daily-organizer/commit/fba6accd2e79cee88c694948b56857806b34ab60))
+
 ## 1.0.0 (2026-02-09)
 
 

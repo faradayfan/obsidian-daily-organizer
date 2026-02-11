@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/faradayfan/obsidian-daily-organizer/compare/v1.1.1...v1.2.0) (2026-02-11)
+
+
+### Features
+
+* changed the project tag convention, support for project archival ([654dbfd](https://github.com/faradayfan/obsidian-daily-organizer/commit/654dbfd74c936f5b4042cac96466d1697409c952))
+
 ## [1.1.1](https://github.com/faradayfan/obsidian-daily-organizer/compare/v1.1.0...v1.1.1) (2026-02-10)
 
 

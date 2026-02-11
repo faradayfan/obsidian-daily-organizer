@@ -297,8 +297,8 @@ export class DailyOrganizerSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Project Updates").setHeading();
 
 		new Setting(containerEl)
-			.setName('Project Tag')
-			.setDesc('Tag used to identify project pages')
+			.setName('Project tag prefix')
+			.setDesc('Tag prefix for project discovery. Tag project pages with #project/<name> (e.g., #project/my-app).')
 			.addText(text => text
 				.setPlaceholder('#project')
 				.setValue(this.plugin.settings.projectTag)

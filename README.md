@@ -48,8 +48,8 @@ Automatically tags tasks with relevant project tags based on keywords from proje
 ```markdown
 - [ ] Fix authentication bug in API
 
-# Becomes (if "authentication" and "api" are keywords for #web-api project):
-- [ ] Fix authentication bug in API #web-api
+# Becomes (if "authentication" and "api" are keywords for the Web API project):
+- [ ] Fix authentication bug in API #project/web-api
 ```
 
 ### 3. Hierarchical Todo Migration
@@ -198,7 +198,7 @@ Configure in Settings → Daily Organizer → LLM Configuration
 
 | Setting                          | Description                                                         | Default          |
 | -------------------------------- | ------------------------------------------------------------------- | ---------------- |
-| **Project Tag**                  | Tag that identifies project pages                                   | `#project`       |
+| **Project Tag Prefix**           | Tag prefix for project discovery (tag pages with `#project/<name>`) | `#project`       |
 | **Project Update Tag**           | Tag that marks where daily updates will be inserted                 | `#daily-updates` |
 | **Update Insert Position**       | Where to insert new updates (`top` or `bottom`)                     | `top`            |
 | **Auto-update Projects**         | Automatically update projects when creating a new daily note        | `false`          |
@@ -273,8 +273,7 @@ Project pages should include specific frontmatter and sections for optimal AI an
 ```yaml
 ---
 tags:
-    - project
-name: Project Name
+    - project/my-project-name
 status: Active
 goals: |
     - Primary objective
@@ -288,8 +287,7 @@ update_style: Style guidance for updates (optional)
 
 #### Required Properties
 
-- `tags`: Must include the configured project tag (default: `project`)
-- `name`: The project name
+- `tags`: Must include a nested tag under the configured prefix (default: `project/<name>`, e.g., `project/my-app`). This tag is used to identify the file as a project and is also applied to matching tasks in daily notes.
 
 #### Optional Guidance Properties
 
@@ -306,8 +304,7 @@ These properties help the LLM generate better, more relevant updates:
 ```markdown
 ---
 tags:
-    - project
-name: Daily Organizer Plugin
+    - project/daily-organizer
 status: Active
 goals: |
     - Create automated todo migration
@@ -398,7 +395,7 @@ Analyzes the current daily note and updates all relevant project pages with prog
 
 **Behavior:**
 
-1. Finds all project pages (files with the project tag)
+1. Finds all project pages (files with a `#project/<name>` tag)
 2. If "Auto-update Project Keywords" is enabled, regenerates keywords for each project first
 3. For each project:
     - Extracts project metadata and key sections (Goals, Status, Overview)
@@ -423,7 +420,7 @@ Uses LLM to analyze each project's content and generate relevant keywords for pr
 
 **Behavior:**
 
-1. Finds all project pages (files with the project tag)
+1. Finds all project pages (files with a `#project/<name>` tag)
 2. For each project:
     - Extracts key sections (Goals, Status, Overview, Description)
     - Sends content to LLM for keyword analysis
@@ -438,7 +435,7 @@ Before:
 ```yaml
 ---
 tags:
-    - project
+    - project/web-api-migration
 name: Web API Migration
 ---
 ```
@@ -448,7 +445,7 @@ After:
 ```yaml
 ---
 tags:
-    - project
+    - project/web-api-migration
 name: Web API Migration
 update_keywords: api, migration, database, authentication, endpoints, rest, deployment, testing
 ---
@@ -505,7 +502,7 @@ Tags tasks and section headers in the active file with relevant project tags bas
     - Root-level task items and their children
     - Section headers and their content
 3. Matches text against project keywords
-4. Adds project tags (e.g., `#web-api`) to matching items
+4. Adds the project's tag (e.g., `#project/web-api`) to matching items
 5. Tags are inserted before metadata fields
 6. Skips sections marked with `#ignore-project-tagging`
 7. Shows a notice with count of tagged items
@@ -516,8 +513,8 @@ Tags tasks and section headers in the active file with relevant project tags bas
 # Before:
 - [ ] Fix authentication bug in API server
 
-# After (if "authentication" and "api" are keywords for Web API project):
-- [ ] Fix authentication bug in API server #web-api
+# After (if "authentication" and "api" are keywords for the Web API project):
+- [ ] Fix authentication bug in API server #project/web-api
 ```
 
 ## Automatic Features
@@ -620,7 +617,7 @@ When **Auto-update Projects** is turned on, the plugin automatically updates pro
 ### Project Update Algorithm
 
 1. **Find Projects**
-    - Scan vault for files with the project tag in frontmatter
+    - Scan vault for files with a `#project/<name>` tag in frontmatter or inline
     - Parse frontmatter to extract metadata
 
 2. **Generate Keywords** (optional, if enabled)
@@ -730,7 +727,7 @@ The "Work summary" subtree is NOT migrated because it has no incomplete checkbox
 ```yaml
 ---
 tags:
-    - project
+    - project/daily-organizer
 name: Daily Organizer Plugin
 status: Active Development
 update_focus: Focus on feature completion and test coverage
@@ -839,7 +836,7 @@ npm run lint   # Check for linting issues
 ### Project Updates Not Working
 
 1. Verify you have a valid API key configured
-2. Check that project pages have the project tag in frontmatter
+2. Check that project pages have a `#project/<name>` tag in frontmatter (e.g., `project/my-app`)
 3. Ensure the project has the `#daily-updates` tag where updates should be inserted
 4. Check the developer console (Cmd/Ctrl + Shift + I) for error messages
 5. Verify the LLM found relevant content (if nothing is relevant, it won't update)

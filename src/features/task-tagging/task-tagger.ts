@@ -55,15 +55,18 @@ export class TaskTagger {
 	 */
 	async tagTasksInFile(file: import('obsidian').TFile): Promise<number> {
 		const projects = await this.projectFinder.findProjects();
+		console.debug('[TaskTagger] Found projects:', projects.map(p => ({ name: p.name, tag: p.tag, keywords: p.update_keywords })));
 		if (projects.length === 0) {
 			return 0;
 		}
 
 		const projectMaps = TaskTagger.buildProjectKeywordMaps(projects);
+		console.debug('[TaskTagger] Project keyword maps:', projectMaps);
 		const content = await this.app.vault.read(file);
 		const excludeTags = [this.settings.todoSectionTag, this.settings.ignoreProjectTaggingTag];
 		const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps, excludeTags);
 
+		console.debug(`[TaskTagger] Tagged ${taggedCount} item(s) in ${file.path}`);
 		if (taggedCount > 0) {
 			await this.app.vault.modify(file, newContent);
 		}
@@ -71,20 +74,12 @@ export class TaskTagger {
 		return taggedCount;
 	}
 
-	static toKebabCaseTag(name: string): string {
-		const kebab = name
-			.trim()
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/^-+|-+$/g, '');
-		return `#${kebab}`;
-	}
-
 	static buildProjectKeywordMaps(projects: ProjectMetadata[]): ProjectKeywordMap[] {
 		return projects.map(project => {
 			const keywords: string[] = [project.name.toLowerCase()];
 
 			if (project.update_keywords) {
+				console.debug(`[TaskTagger] buildKeywords for "${project.name}": update_keywords type=${typeof project.update_keywords}, isArray=${Array.isArray(project.update_keywords)}, value=`, project.update_keywords);
 				// Handle both array and comma-separated string formats
 				const keywordList = Array.isArray(project.update_keywords)
 					? project.update_keywords
@@ -96,8 +91,9 @@ export class TaskTagger {
 				keywords.push(...parsed);
 			}
 
+			console.debug(`[TaskTagger] Final keywords for "${project.name}":`, keywords);
 			return {
-				tag: TaskTagger.toKebabCaseTag(project.name),
+				tag: project.tag,
 				projectName: project.name,
 				keywords,
 			};
@@ -111,6 +107,7 @@ export class TaskTagger {
 		for (const map of projectMaps) {
 			for (const keyword of map.keywords) {
 				if (textLower.includes(keyword)) {
+					console.debug(`[TaskTagger] MATCH: keyword "${keyword}" found in text "${taskText}" → tag ${map.tag}`);
 					matchingTags.push(map.tag);
 					break;
 				}
@@ -194,6 +191,7 @@ export class TaskTagger {
 
 			const matchingTags = TaskTagger.findMatchingTags(combinedText, projectMaps);
 			if (matchingTags.length > 0) {
+				console.debug(`[TaskTagger] Header "${headerLine}" matched tags:`, matchingTags, '| combinedText:', combinedText);
 				const currentLine = newLines[header.lineIndex] as string;
 				const newLine = TaskTagger.appendTagsToHeaderLine(currentLine, matchingTags);
 				if (newLine !== currentLine) {
@@ -250,6 +248,7 @@ export class TaskTagger {
 			}
 
 			const { combinedText, endIndex } = TaskTagger.collectSubtreeText(lines, i);
+			console.debug(`[TaskTagger] Processing task line ${i}: "${line}" | combinedText: "${combinedText}"`);
 			const matchingTags = TaskTagger.findMatchingTags(combinedText, projectMaps);
 
 			if (matchingTags.length > 0) {

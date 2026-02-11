@@ -49,7 +49,7 @@ export class ProjectUpdater {
 		const currentProject = projects.find(p => p.path === activeFile.path);
 
 		if (!currentProject) {
-			new Notice(`Current file is not a project. Projects must have the ${this.settings.projectTag} tag.`);
+			new Notice(`Current file is not a project. Projects must have a ${this.settings.projectTag}/<name> tag.`);
 			return;
 		}
 
@@ -76,7 +76,7 @@ export class ProjectUpdater {
 		const projects = await this.projectFinder.findProjects();
 
 		if (projects.length === 0) {
-			new Notice(`No projects found with ${this.settings.projectTag} tag.`);
+			new Notice(`No projects found with ${this.settings.projectTag}/<name> tags.`);
 			return;
 		}
 
@@ -201,7 +201,7 @@ export class ProjectUpdater {
 		let projects = await this.projectFinder.findProjects();
 
 		if (projects.length === 0) {
-			new Notice(`No projects found with ${this.settings.projectTag} tag.`);
+			new Notice(`No projects found with ${this.settings.projectTag}/<name> tags.`);
 			return;
 		}
 
@@ -497,7 +497,7 @@ export class ProjectUpdater {
 		const lines = dailyNotes.split('\n');
 		const relevantSections: string[] = [];
 		const projectName = project.name.toLowerCase();
-		const projectTag = TaskTagger.toKebabCaseTag(project.name);
+		const projectTag = project.tag;
 
 		// Parse keywords from frontmatter (array or comma-separated string)
 		const keywords: string[] = [];
@@ -588,7 +588,7 @@ export class ProjectUpdater {
 
 			// Check if line mentions the project name, tag, or any keywords
 			const mentionsProject = lineLower.includes(projectName) ||
-			                        line.includes(this.settings.projectTag) ||
+			                        line.includes(projectTag) ||
 			                        keywords.some(kw => lineLower.includes(kw));
 
 			if (mentionsProject) {

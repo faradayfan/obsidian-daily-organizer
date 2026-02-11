@@ -20,6 +20,7 @@ export interface FileChange {
 export interface ProjectMetadata {
 	path: string;
 	name: string;
+	tag: string;
 	goals?: string;
 	status?: string;
 	description?: string;

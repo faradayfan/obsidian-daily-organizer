@@ -21,9 +21,11 @@ export class ProjectFinder {
 
 		for (const file of files) {
 			const cache = this.app.metadataCache.getFileCache(file);
+			if (cache?.frontmatter?.archived) continue;
+			const tag = this.findProjectTag(cache);
 
-			if (this.hasProjectTag(cache)) {
-				const metadata = await this.extractMetadata(file, cache);
+			if (tag) {
+				const metadata = await this.extractMetadata(file, cache, tag);
 				projects.push(metadata);
 			}
 		}
@@ -31,32 +33,28 @@ export class ProjectFinder {
 		return projects;
 	}
 
-	private hasProjectTag(cache: CachedMetadata | null): boolean {
+	private findProjectTag(cache: CachedMetadata | null): string | null {
 		if (!cache) {
-			return false;
+			return null;
 		}
 
-		const targetTag = this.settings.projectTag.replace(/^#/, '');
+		const prefix = this.normalizeTag(this.settings.projectTag) + '/';
 
-		// Check frontmatter tags
+		// Only check frontmatter tags for project discovery
 		if (cache.frontmatter?.tags) {
 			const tags = Array.isArray(cache.frontmatter.tags)
 				? cache.frontmatter.tags
 				: [cache.frontmatter.tags];
 
-			if (tags.some((t: string) => this.normalizeTag(t) === targetTag)) {
-				return true;
+			for (const t of tags) {
+				const normalized = this.normalizeTag(t as string);
+				if (normalized.startsWith(prefix)) {
+					return '#' + normalized;
+				}
 			}
 		}
 
-		// Check inline tags
-		if (cache.tags) {
-			if (cache.tags.some(t => this.normalizeTag(t.tag) === targetTag)) {
-				return true;
-			}
-		}
-
-		return false;
+		return null;
 	}
 
 	private normalizeTag(tag: string): string {
@@ -65,7 +63,8 @@ export class ProjectFinder {
 
 	private async extractMetadata(
 		file: TFile,
-		cache: CachedMetadata | null
+		cache: CachedMetadata | null,
+		tag: string
 	): Promise<ProjectMetadata> {
 		const frontmatter = cache?.frontmatter ?? {};
 
@@ -76,6 +75,7 @@ export class ProjectFinder {
 			status: this.extractStringField(frontmatter, 'status'),
 			description: this.extractStringField(frontmatter, 'description'),
 			...frontmatter,
+			tag,
 		};
 	}
 

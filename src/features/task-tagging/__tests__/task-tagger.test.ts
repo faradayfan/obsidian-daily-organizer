@@ -2,47 +2,18 @@ import { TaskTagger, ProjectKeywordMap } from '../task-tagger';
 import type { ProjectMetadata } from '../../../types';
 
 describe('TaskTagger', () => {
-	describe('toKebabCaseTag()', () => {
-		it('should convert a multi-word name to kebab-case tag', () => {
-			expect(TaskTagger.toKebabCaseTag('Daily Organizer Plugin')).toBe('#daily-organizer-plugin');
-		});
-
-		it('should handle single word', () => {
-			expect(TaskTagger.toKebabCaseTag('Project')).toBe('#project');
-		});
-
-		it('should handle extra spaces', () => {
-			expect(TaskTagger.toKebabCaseTag('  Spaces Around  ')).toBe('#spaces-around');
-		});
-
-		it('should handle uppercase', () => {
-			expect(TaskTagger.toKebabCaseTag('UPPERCASE')).toBe('#uppercase');
-		});
-
-		it('should handle special characters', () => {
-			expect(TaskTagger.toKebabCaseTag('Project (v2.0)')).toBe('#project-v2-0');
-		});
-
-		it('should collapse multiple dashes', () => {
-			expect(TaskTagger.toKebabCaseTag('Project--With---Dashes')).toBe('#project-with-dashes');
-		});
-
-		it('should handle alphanumeric names', () => {
-			expect(TaskTagger.toKebabCaseTag('project123')).toBe('#project123');
-		});
-	});
-
 	describe('buildProjectKeywordMaps()', () => {
-		it('should include project name as a keyword', () => {
+		it('should use tag from project metadata and include name as keyword', () => {
 			const projects: ProjectMetadata[] = [{
 				path: 'test.md',
 				name: 'My Project',
+				tag: '#project/my-project',
 			}];
 
 			const maps = TaskTagger.buildProjectKeywordMaps(projects);
 
 			expect(maps).toHaveLength(1);
-			expect(maps[0].tag).toBe('#my-project');
+			expect(maps[0].tag).toBe('#project/my-project');
 			expect(maps[0].keywords).toContain('my project');
 		});
 
@@ -50,6 +21,7 @@ describe('TaskTagger', () => {
 			const projects: ProjectMetadata[] = [{
 				path: 'test.md',
 				name: 'My Project',
+				tag: '#project/my-project',
 				update_keywords: 'migration, LLM, testing',
 			}];
 
@@ -62,6 +34,7 @@ describe('TaskTagger', () => {
 			const projects: ProjectMetadata[] = [{
 				path: 'test.md',
 				name: 'My Project',
+				tag: '#project/my-project',
 				update_keywords: ['migration', 'LLM', 'testing'],
 			}];
 
@@ -74,18 +47,20 @@ describe('TaskTagger', () => {
 			const projects: ProjectMetadata[] = [{
 				path: 'test.md',
 				name: 'Solo',
+				tag: '#project/solo',
 			}];
 
 			const maps = TaskTagger.buildProjectKeywordMaps(projects);
 
 			expect(maps[0].keywords).toEqual(['solo']);
-			expect(maps[0].tag).toBe('#solo');
+			expect(maps[0].tag).toBe('#project/solo');
 		});
 
 		it('should handle empty keywords string', () => {
 			const projects: ProjectMetadata[] = [{
 				path: 'test.md',
 				name: 'Test',
+				tag: '#project/test',
 				update_keywords: '',
 			}];
 
@@ -98,6 +73,7 @@ describe('TaskTagger', () => {
 			const projects: ProjectMetadata[] = [{
 				path: 'test.md',
 				name: 'Test',
+				tag: '#project/test',
 				update_keywords: [],
 			}];
 
@@ -108,42 +84,55 @@ describe('TaskTagger', () => {
 
 		it('should handle multiple projects', () => {
 			const projects: ProjectMetadata[] = [
-				{ path: 'a.md', name: 'Alpha', update_keywords: 'foo' },
-				{ path: 'b.md', name: 'Beta', update_keywords: 'bar' },
+				{ path: 'a.md', name: 'Alpha', tag: '#project/alpha', update_keywords: 'foo' },
+				{ path: 'b.md', name: 'Beta', tag: '#project/beta', update_keywords: 'bar' },
 			];
 
 			const maps = TaskTagger.buildProjectKeywordMaps(projects);
 
 			expect(maps).toHaveLength(2);
-			expect(maps[0].tag).toBe('#alpha');
-			expect(maps[1].tag).toBe('#beta');
+			expect(maps[0].tag).toBe('#project/alpha');
+			expect(maps[1].tag).toBe('#project/beta');
+		});
+
+		it('should preserve user-defined tag format exactly', () => {
+			const projects: ProjectMetadata[] = [{
+				path: 'test.md',
+				name: 'My Project (v2)',
+				tag: '#project/my-proj-v2',
+			}];
+
+			const maps = TaskTagger.buildProjectKeywordMaps(projects);
+
+			expect(maps[0].tag).toBe('#project/my-proj-v2');
+			expect(maps[0].keywords).toContain('my project (v2)');
 		});
 	});
 
 	describe('findMatchingTags()', () => {
 		const projectMaps: ProjectKeywordMap[] = [
-			{ tag: '#daily-organizer', projectName: 'Daily Organizer', keywords: ['daily organizer', 'migration', 'llm'] },
-			{ tag: '#website', projectName: 'Website', keywords: ['website', 'frontend', 'css'] },
+			{ tag: '#project/daily-organizer', projectName: 'Daily Organizer', keywords: ['daily organizer', 'migration', 'llm'] },
+			{ tag: '#project/website', projectName: 'Website', keywords: ['website', 'frontend', 'css'] },
 		];
 
 		it('should match on keyword', () => {
 			const tags = TaskTagger.findMatchingTags('Fix the migration bug', projectMaps);
-			expect(tags).toEqual(['#daily-organizer']);
+			expect(tags).toEqual(['#project/daily-organizer']);
 		});
 
 		it('should match on project name', () => {
 			const tags = TaskTagger.findMatchingTags('Work on Daily Organizer feature', projectMaps);
-			expect(tags).toEqual(['#daily-organizer']);
+			expect(tags).toEqual(['#project/daily-organizer']);
 		});
 
 		it('should be case-insensitive', () => {
 			const tags = TaskTagger.findMatchingTags('Update the FRONTEND layout', projectMaps);
-			expect(tags).toEqual(['#website']);
+			expect(tags).toEqual(['#project/website']);
 		});
 
 		it('should match multiple projects', () => {
 			const tags = TaskTagger.findMatchingTags('Fix migration CSS issues', projectMaps);
-			expect(tags).toEqual(['#daily-organizer', '#website']);
+			expect(tags).toEqual(['#project/daily-organizer', '#project/website']);
 		});
 
 		it('should return empty for no matches', () => {
@@ -153,100 +142,100 @@ describe('TaskTagger', () => {
 
 		it('should match substring keywords', () => {
 			const tags = TaskTagger.findMatchingTags('Testing LLM integration', projectMaps);
-			expect(tags).toEqual(['#daily-organizer']);
+			expect(tags).toEqual(['#project/daily-organizer']);
 		});
 	});
 
 	describe('hasTag()', () => {
 		it('should detect tag present', () => {
-			expect(TaskTagger.hasTag('Fix bug #my-project', '#my-project')).toBe(true);
+			expect(TaskTagger.hasTag('Fix bug #project/my-project', '#project/my-project')).toBe(true);
 		});
 
 		it('should not match tag as substring of longer tag', () => {
-			expect(TaskTagger.hasTag('Fix bug #my-project-v2', '#my-project')).toBe(false);
+			expect(TaskTagger.hasTag('Fix bug #project/my-project-v2', '#project/my-project')).toBe(false);
 		});
 
 		it('should match tag at end of line', () => {
-			expect(TaskTagger.hasTag('Fix bug #my-project', '#my-project')).toBe(true);
+			expect(TaskTagger.hasTag('Fix bug #project/my-project', '#project/my-project')).toBe(true);
 		});
 
 		it('should match tag followed by space', () => {
-			expect(TaskTagger.hasTag('Fix #my-project bug', '#my-project')).toBe(true);
+			expect(TaskTagger.hasTag('Fix #project/my-project bug', '#project/my-project')).toBe(true);
 		});
 
 		it('should match tag followed by metadata', () => {
-			expect(TaskTagger.hasTag('Fix #my-project [created:: 2025-01-01]', '#my-project')).toBe(true);
+			expect(TaskTagger.hasTag('Fix #project/my-project [created:: 2025-01-01]', '#project/my-project')).toBe(true);
 		});
 
 		it('should return false when tag is absent', () => {
-			expect(TaskTagger.hasTag('Fix bug', '#my-project')).toBe(false);
+			expect(TaskTagger.hasTag('Fix bug', '#project/my-project')).toBe(false);
 		});
 	});
 
 	describe('appendTagsToTaskLine()', () => {
 		it('should append tag to simple task', () => {
-			const result = TaskTagger.appendTagsToTaskLine('- [ ] Fix the bug', ['#my-project']);
-			expect(result).toBe('- [ ] Fix the bug #my-project');
+			const result = TaskTagger.appendTagsToTaskLine('- [ ] Fix the bug', ['#project/my-project']);
+			expect(result).toBe('- [ ] Fix the bug #project/my-project');
 		});
 
 		it('should append tag before metadata fields', () => {
 			const result = TaskTagger.appendTagsToTaskLine(
 				'- [ ] Fix the bug [created:: 2025-01-01]',
-				['#my-project']
+				['#project/my-project']
 			);
-			expect(result).toBe('- [ ] Fix the bug #my-project [created:: 2025-01-01]');
+			expect(result).toBe('- [ ] Fix the bug #project/my-project [created:: 2025-01-01]');
 		});
 
 		it('should append tag before multiple metadata fields', () => {
 			const result = TaskTagger.appendTagsToTaskLine(
 				'- [x] Fix bug [created:: 2025-01-01] [completion:: 2025-01-02]',
-				['#my-project']
+				['#project/my-project']
 			);
-			expect(result).toBe('- [x] Fix bug #my-project [created:: 2025-01-01] [completion:: 2025-01-02]');
+			expect(result).toBe('- [x] Fix bug #project/my-project [created:: 2025-01-01] [completion:: 2025-01-02]');
 		});
 
 		it('should not duplicate existing tag', () => {
 			const result = TaskTagger.appendTagsToTaskLine(
-				'- [ ] Fix the bug #my-project',
-				['#my-project']
+				'- [ ] Fix the bug #project/my-project',
+				['#project/my-project']
 			);
-			expect(result).toBe('- [ ] Fix the bug #my-project');
+			expect(result).toBe('- [ ] Fix the bug #project/my-project');
 		});
 
 		it('should handle indented tasks', () => {
-			const result = TaskTagger.appendTagsToTaskLine('  - [ ] Subtask', ['#my-project']);
-			expect(result).toBe('  - [ ] Subtask #my-project');
+			const result = TaskTagger.appendTagsToTaskLine('  - [ ] Subtask', ['#project/my-project']);
+			expect(result).toBe('  - [ ] Subtask #project/my-project');
 		});
 
 		it('should append multiple tags', () => {
-			const result = TaskTagger.appendTagsToTaskLine('- [ ] Fix CSS migration', ['#alpha', '#beta']);
-			expect(result).toBe('- [ ] Fix CSS migration #alpha #beta');
+			const result = TaskTagger.appendTagsToTaskLine('- [ ] Fix CSS migration', ['#project/alpha', '#project/beta']);
+			expect(result).toBe('- [ ] Fix CSS migration #project/alpha #project/beta');
 		});
 
 		it('should skip already-present tags when adding multiple', () => {
 			const result = TaskTagger.appendTagsToTaskLine(
-				'- [ ] Fix CSS migration #alpha',
-				['#alpha', '#beta']
+				'- [ ] Fix CSS migration #project/alpha',
+				['#project/alpha', '#project/beta']
 			);
-			expect(result).toBe('- [ ] Fix CSS migration #alpha #beta');
+			expect(result).toBe('- [ ] Fix CSS migration #project/alpha #project/beta');
 		});
 
 		it('should handle completed tasks', () => {
-			const result = TaskTagger.appendTagsToTaskLine('- [x] Done task', ['#my-project']);
-			expect(result).toBe('- [x] Done task #my-project');
+			const result = TaskTagger.appendTagsToTaskLine('- [x] Done task', ['#project/my-project']);
+			expect(result).toBe('- [x] Done task #project/my-project');
 		});
 
 		it('should not modify non-checkbox lines', () => {
-			const result = TaskTagger.appendTagsToTaskLine('- Plain bullet', ['#my-project']);
+			const result = TaskTagger.appendTagsToTaskLine('- Plain bullet', ['#project/my-project']);
 			expect(result).toBe('- Plain bullet');
 		});
 
 		it('should handle task with existing tags and metadata', () => {
 			const result = TaskTagger.appendTagsToTaskLine(
-				'- [ ] Fix bug #existing [created:: 2025-01-01]',
-				['#new-tag']
+				'- [ ] Fix bug #project/existing [created:: 2025-01-01]',
+				['#project/new-tag']
 			);
-			expect(result).toBe('- [ ] Fix bug #existing #new-tag [created:: 2025-01-01]');
+			expect(result).toBe('- [ ] Fix bug #project/existing #project/new-tag [created:: 2025-01-01]');
 		});
 	});
 
@@ -304,8 +293,8 @@ describe('TaskTagger', () => {
 
 	describe('processFileContent()', () => {
 		const projectMaps: ProjectKeywordMap[] = [
-			{ tag: '#my-project', projectName: 'My Project', keywords: ['my project', 'migration'] },
-			{ tag: '#website', projectName: 'Website', keywords: ['website', 'frontend'] },
+			{ tag: '#project/my-project', projectName: 'My Project', keywords: ['my project', 'migration'] },
+			{ tag: '#project/website', projectName: 'Website', keywords: ['website', 'frontend'] },
 		];
 
 		it('should tag root task when root text matches keyword', () => {
@@ -313,7 +302,7 @@ describe('TaskTagger', () => {
 			const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newContent).toContain('- [ ] Fix the migration bug #my-project');
+			expect(newContent).toContain('- [ ] Fix the migration bug #project/my-project');
 			expect(newContent).toContain('- [ ] Go shopping');
 		});
 
@@ -322,7 +311,7 @@ describe('TaskTagger', () => {
 			const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newContent).toContain('- [ ] Fix some bugs #my-project');
+			expect(newContent).toContain('- [ ] Fix some bugs #project/my-project');
 			// Children should not be modified
 			expect(newContent).toContain('  - [ ] Handle migration edge case');
 			expect(newContent).toContain('  - Look at error logs');
@@ -333,7 +322,7 @@ describe('TaskTagger', () => {
 			const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newContent).toContain('- [ ] Work on stuff #website');
+			expect(newContent).toContain('- [ ] Work on stuff #project/website');
 			expect(newContent).toContain('  - Update frontend styles');
 		});
 
@@ -342,7 +331,7 @@ describe('TaskTagger', () => {
 			const { newContent } = TaskTagger.processFileContent(content, projectMaps);
 
 			// Only root gets tagged, not the child
-			expect(newContent).toContain('- [ ] Parent task #my-project');
+			expect(newContent).toContain('- [ ] Parent task #project/my-project');
 			expect(newContent).toContain('  - [ ] migration subtask');
 			expect(newContent).not.toContain('  - [ ] migration subtask #');
 		});
@@ -352,7 +341,7 @@ describe('TaskTagger', () => {
 			const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newContent).toBe('- Fix the migration bug\n- [ ] Also migration #my-project');
+			expect(newContent).toBe('- Fix the migration bug\n- [ ] Also migration #project/my-project');
 		});
 
 		it('should preserve non-task content', () => {
@@ -361,7 +350,7 @@ describe('TaskTagger', () => {
 
 			// 2 items: the header (section contains "migration") and the task
 			expect(taggedCount).toBe(2);
-			expect(newContent).toContain('# Header #my-project');
+			expect(newContent).toContain('# Header #project/my-project');
 			expect(newContent).toContain('Some text');
 			expect(newContent).toContain('More text');
 		});
@@ -380,8 +369,8 @@ describe('TaskTagger', () => {
 			const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newContent).toContain('#my-project');
-			expect(newContent).toContain('#website');
+			expect(newContent).toContain('#project/my-project');
+			expect(newContent).toContain('#project/website');
 		});
 
 		it('should handle empty content', () => {
@@ -411,8 +400,8 @@ describe('TaskTagger', () => {
 			const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
 
 			expect(taggedCount).toBe(2);
-			expect(newContent).toContain('- [ ] Task A #my-project');
-			expect(newContent).toContain('- [ ] Task B #website');
+			expect(newContent).toContain('- [ ] Task A #project/my-project');
+			expect(newContent).toContain('- [ ] Task B #project/website');
 			expect(newContent).toContain('- [ ] Task C\n');
 		});
 
@@ -421,8 +410,8 @@ describe('TaskTagger', () => {
 			const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
 
 			expect(taggedCount).toBe(2);
-			expect(newContent).toContain('## Sprint Work #my-project');
-			expect(newContent).toContain('- [ ] Fix migration bug #my-project');
+			expect(newContent).toContain('## Sprint Work #project/my-project');
+			expect(newContent).toContain('- [ ] Fix migration bug #project/my-project');
 			expect(newContent).not.toContain('## Personal #');
 		});
 
@@ -440,46 +429,46 @@ describe('TaskTagger', () => {
 			const { newContent, taggedCount } = TaskTagger.processFileContent(content, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newContent).toContain('## Migration Notes #my-project');
+			expect(newContent).toContain('## Migration Notes #project/my-project');
 		});
 	});
 
 	describe('appendTagsToHeaderLine()', () => {
 		it('should append tag to header', () => {
-			const result = TaskTagger.appendTagsToHeaderLine('## Meeting Notes', ['#my-project']);
-			expect(result).toBe('## Meeting Notes #my-project');
+			const result = TaskTagger.appendTagsToHeaderLine('## Meeting Notes', ['#project/my-project']);
+			expect(result).toBe('## Meeting Notes #project/my-project');
 		});
 
 		it('should not duplicate existing tag', () => {
-			const result = TaskTagger.appendTagsToHeaderLine('## Meeting Notes #my-project', ['#my-project']);
-			expect(result).toBe('## Meeting Notes #my-project');
+			const result = TaskTagger.appendTagsToHeaderLine('## Meeting Notes #project/my-project', ['#project/my-project']);
+			expect(result).toBe('## Meeting Notes #project/my-project');
 		});
 
 		it('should append multiple tags', () => {
-			const result = TaskTagger.appendTagsToHeaderLine('## Sprint Review', ['#alpha', '#beta']);
-			expect(result).toBe('## Sprint Review #alpha #beta');
+			const result = TaskTagger.appendTagsToHeaderLine('## Sprint Review', ['#project/alpha', '#project/beta']);
+			expect(result).toBe('## Sprint Review #project/alpha #project/beta');
 		});
 
 		it('should skip already-present tags when adding multiple', () => {
-			const result = TaskTagger.appendTagsToHeaderLine('## Sprint Review #alpha', ['#alpha', '#beta']);
-			expect(result).toBe('## Sprint Review #alpha #beta');
+			const result = TaskTagger.appendTagsToHeaderLine('## Sprint Review #project/alpha', ['#project/alpha', '#project/beta']);
+			expect(result).toBe('## Sprint Review #project/alpha #project/beta');
 		});
 
 		it('should handle different header levels', () => {
-			expect(TaskTagger.appendTagsToHeaderLine('### Subtopic', ['#my-project'])).toBe('### Subtopic #my-project');
-			expect(TaskTagger.appendTagsToHeaderLine('# Top Level', ['#my-project'])).toBe('# Top Level #my-project');
+			expect(TaskTagger.appendTagsToHeaderLine('### Subtopic', ['#project/my-project'])).toBe('### Subtopic #project/my-project');
+			expect(TaskTagger.appendTagsToHeaderLine('# Top Level', ['#project/my-project'])).toBe('# Top Level #project/my-project');
 		});
 
 		it('should not modify non-header lines', () => {
-			expect(TaskTagger.appendTagsToHeaderLine('Plain text', ['#my-project'])).toBe('Plain text');
-			expect(TaskTagger.appendTagsToHeaderLine('- [ ] A task', ['#my-project'])).toBe('- [ ] A task');
+			expect(TaskTagger.appendTagsToHeaderLine('Plain text', ['#project/my-project'])).toBe('Plain text');
+			expect(TaskTagger.appendTagsToHeaderLine('- [ ] A task', ['#project/my-project'])).toBe('- [ ] A task');
 		});
 	});
 
 	describe('tagSectionHeaders()', () => {
 		const projectMaps: ProjectKeywordMap[] = [
-			{ tag: '#my-project', projectName: 'My Project', keywords: ['my project', 'migration'] },
-			{ tag: '#website', projectName: 'Website', keywords: ['website', 'frontend'] },
+			{ tag: '#project/my-project', projectName: 'My Project', keywords: ['my project', 'migration'] },
+			{ tag: '#project/website', projectName: 'Website', keywords: ['website', 'frontend'] },
 		];
 
 		it('should tag header when section body matches keyword', () => {
@@ -487,7 +476,7 @@ describe('TaskTagger', () => {
 			const { newLines, taggedCount } = TaskTagger.tagSectionHeaders(lines, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newLines[0]).toBe('## Meeting Notes #my-project');
+			expect(newLines[0]).toBe('## Meeting Notes #project/my-project');
 			expect(newLines[2]).toBe('## Other');
 		});
 
@@ -496,7 +485,7 @@ describe('TaskTagger', () => {
 			const { newLines, taggedCount } = TaskTagger.tagSectionHeaders(lines, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newLines[0]).toBe('## Migration Plan #my-project');
+			expect(newLines[0]).toBe('## Migration Plan #project/my-project');
 		});
 
 		it('should not tag header when no keywords match', () => {
@@ -512,8 +501,8 @@ describe('TaskTagger', () => {
 			const { newLines, taggedCount } = TaskTagger.tagSectionHeaders(lines, projectMaps);
 
 			expect(taggedCount).toBe(2);
-			expect(newLines[0]).toBe('## Migration #my-project');
-			expect(newLines[2]).toBe('## Frontend Work #website');
+			expect(newLines[0]).toBe('## Migration #project/my-project');
+			expect(newLines[2]).toBe('## Frontend Work #project/website');
 			expect(newLines[4]).toBe('## Personal');
 		});
 
@@ -533,7 +522,7 @@ describe('TaskTagger', () => {
 			// ### Agenda only has "Unrelated topic" — no match
 			expect(newLines[1]).toBe('### Agenda');
 			// ### Action Items has "Fix migration" — matches
-			expect(newLines[3]).toBe('### Action Items #my-project');
+			expect(newLines[3]).toBe('### Action Items #project/my-project');
 			expect(taggedCount).toBe(1);
 		});
 
@@ -551,7 +540,7 @@ describe('TaskTagger', () => {
 			const { newLines, taggedCount } = TaskTagger.tagSectionHeaders(lines, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newLines[0]).toBe('## Tasks #my-project');
+			expect(newLines[0]).toBe('## Tasks #project/my-project');
 		});
 
 		it('should handle empty section', () => {
@@ -560,7 +549,7 @@ describe('TaskTagger', () => {
 
 			expect(taggedCount).toBe(1);
 			expect(newLines[0]).toBe('## Empty Section');
-			expect(newLines[1]).toBe('## Migration Section #my-project');
+			expect(newLines[1]).toBe('## Migration Section #project/my-project');
 		});
 
 		it('should tag with multiple project tags', () => {
@@ -568,7 +557,7 @@ describe('TaskTagger', () => {
 			const { newLines, taggedCount } = TaskTagger.tagSectionHeaders(lines, projectMaps);
 
 			expect(taggedCount).toBe(1);
-			expect(newLines[0]).toBe('## Sprint Review #my-project #website');
+			expect(newLines[0]).toBe('## Sprint Review #project/my-project #project/website');
 		});
 
 		it('should skip headers containing excluded tags', () => {
@@ -582,7 +571,7 @@ describe('TaskTagger', () => {
 
 			expect(taggedCount).toBe(1);
 			expect(newLines[0]).toBe('## Todos #todos');
-			expect(newLines[2]).toBe('## Notes #my-project');
+			expect(newLines[2]).toBe('## Notes #project/my-project');
 		});
 
 		it('should skip headers containing #ignore-project-tagging', () => {
@@ -596,7 +585,7 @@ describe('TaskTagger', () => {
 
 			expect(taggedCount).toBe(1);
 			expect(newLines[0]).toBe('## Personal Notes #ignore-project-tagging');
-			expect(newLines[2]).toBe('## Sprint #my-project');
+			expect(newLines[2]).toBe('## Sprint #project/my-project');
 		});
 
 		it('should skip headers matching any of multiple excluded tags', () => {
@@ -613,7 +602,7 @@ describe('TaskTagger', () => {
 			expect(taggedCount).toBe(1);
 			expect(newLines[0]).toBe('## Todos #todos');
 			expect(newLines[2]).toBe('## Private #ignore-project-tagging');
-			expect(newLines[4]).toBe('## Sprint #my-project');
+			expect(newLines[4]).toBe('## Sprint #project/my-project');
 		});
 	});
 });

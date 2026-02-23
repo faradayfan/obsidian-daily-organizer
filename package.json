@@ -51,6 +51,6 @@
 		"typescript-eslint": "^8.55.0"
 	},
 	"dependencies": {
-		"obsidian": "^1.11.4"
+		"obsidian": "^1.12.2"
 	}
 }
